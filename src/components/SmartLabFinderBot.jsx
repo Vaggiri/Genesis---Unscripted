@@ -25,7 +25,7 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
     {
       id: 'msg-welcome',
       sender: 'bot',
-      text: `Hello ${user?.name || 'Innovator'}! 👋 I am the **Amrita InnovateX AI Lab & Facility Finder**.\n\nTell me what project or experiment you want to do (e.g., *"I want to train a PyTorch YOLO deep learning model"* or *"I need to test an analog circuit with LM741 op-amp and oscilloscope"* or *"I need to 3D print a 250mm drone chassis"*). I will match the exact lab, verify hardware/software availability, and find open slots for you!`,
+      text: `Hello ${user?.name || 'Innovator'}! 👋 I am the **Amrita Yukti AI Lab & Facility Finder**.\n\nTell me what project or experiment you want to do (e.g., *"I want to train a PyTorch YOLO deep learning model"* or *"I need to test an analog circuit with LM741 op-amp and oscilloscope"* or *"I need to 3D print a 250mm drone chassis"*). I will match the exact lab, verify hardware/software availability, and find open slots for you!`,
       timestamp: 'Just now'
     }
   ]);
@@ -235,7 +235,7 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
             </div>
             <div>
               <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                InnovateX AI Lab Finder Bot
+                Yukti AI Lab Finder Bot
               </h3>
               <div style={{ fontSize: '0.72rem', color: 'var(--status-available)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: 'var(--status-available)', display: 'inline-block' }} />
@@ -244,7 +244,7 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
             </div>
           </div>
 
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <div className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
             Natural Language Lab Matcher
           </div>
         </div>

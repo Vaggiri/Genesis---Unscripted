@@ -81,13 +81,14 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
         </div>
 
         {/* Quick Stats & Log Out */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem' }}>
-          <div className="hide-mobile">
-            <span style={{ color: 'var(--text-muted)' }}>Project Slots:</span>{' '}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', fontSize: '0.8rem' }}>
+          <div>
+            <span style={{ color: 'var(--text-muted)' }}>Slots:</span>{' '}
             <strong style={{ color: 'var(--amrita-maroon)' }}>{myBookings.length} Active</strong>
           </div>
           <button
             onClick={onLogout}
+            className="hide-mobile"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -157,12 +158,12 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
         {/* 3. My Bookings Status & Approval Queue */}
         {activeTab === 'my_bookings' && (
           <div className="card-amrita" style={{ padding: '1.35rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <div className="mobile-stack-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                   My Innovation Facility Requests
                 </h3>
-                <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', margin: '4px 0 0', lineHeight: 1.45 }}>
                   Track requests submitted via the AI matcher. Faculty sign-off is required prior to equipment access.
                 </p>
               </div>
@@ -170,8 +171,8 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
               <button
                 type="button"
                 onClick={() => setActiveTab('ai_bot')}
-                className="btn-amrita"
-                style={{ fontSize: '0.8rem', padding: '0.4rem 0.85rem' }}
+                className="btn-amrita mobile-full-btn"
+                style={{ fontSize: '0.8rem', padding: '0.45rem 1rem', whiteSpace: 'nowrap' }}
               >
                 + New Request
               </button>

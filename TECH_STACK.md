@@ -1,4 +1,4 @@
-# 🛠️ Amrita InnovateX — Technical Architecture & Stack Specification
+# 🛠️ Amrita Yukti — Technical Architecture & Stack Specification
 
 **Problem Statement:** Centralized Innovation Facility Booking & Utilization Portal  
 **Platform Category:** AI-Powered Campus Facility & Equipment Allocator  

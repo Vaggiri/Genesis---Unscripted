@@ -1,15 +1,16 @@
-# 🏫 Amrita InnovateX
+# 🏫 Amrita Yukti
 ### Centralized Innovation Facility Booking & Utilization Portal
 
 > **Amrita Vishwa Vidyapeetham** — Campus Innovation Hackathon Project  
-> An AI-driven cross-departmental laboratory, prototyping facility, and hardware inventory matching portal.
+> An AI-driven cross-departmental laboratory, prototyping facility, and hardware inventory matching portal.  
+> *(Derived from Sanskrit **Yukti** — Meaning Ingenuity, Skillful Innovation, and Creative Synergy)*
 
 ---
 
 ## 📌 Problem Statement Alignment
 Traditional campus portals require students to manually hunt across isolated departmental silos to figure out where specialized equipment, licensed software (e.g. Vivado, Altium, PyTorch GPU rigs), or 3D printers exist.
 
-**Amrita InnovateX** solves this by:
+**Amrita Yukti** solves this by:
 1. **Natural Language Facility Matcher (Chat-First):** Students simply state their project goals or components needed (e.g., *"Training a YOLO drone perception model with PyTorch"* or *"Testing an analog op-amp circuit with a 100MHz DSO"*).
 2. **Autonomous Toolchain & Stock Verification:** The system matches the exact campus facility, verifies component inventory and machine availability, and recommends immediate open time slots.
 3. **Faculty & Lab In-Charge Approvals:** Real-time cross-tab request routing enabling lab supervisors to review, verify inventory, and approve slot allocations.

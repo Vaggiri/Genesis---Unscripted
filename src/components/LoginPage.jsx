@@ -131,12 +131,12 @@ export default function LoginPage({ onLoginSuccess }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontWeight: 800,
+            fontWeight: 900,
             fontSize: '1.5rem',
             margin: '0 auto 0.75rem',
             boxShadow: '0 6px 16px rgba(164, 18, 63, 0.28)'
           }}>
-            A
+            Y
           </div>
           <h1 style={{ 
             fontSize: '1.85rem', 
@@ -145,7 +145,7 @@ export default function LoginPage({ onLoginSuccess }) {
             marginBottom: '0.2rem',
             letterSpacing: '-0.02em'
           }}>
-            Amrita <span style={{ color: 'var(--amrita-maroon)' }}>InnovateX</span>
+            Amrita <span style={{ color: 'var(--amrita-maroon)' }}>Yukti</span>
           </h1>
           <p style={{ 
             fontSize: '0.85rem', 

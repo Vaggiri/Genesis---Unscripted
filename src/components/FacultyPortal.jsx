@@ -87,6 +87,7 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
           </div>
           <button
             onClick={onLogout}
+            className="hide-mobile"
             style={{
               display: 'inline-flex',
               alignItems: 'center',

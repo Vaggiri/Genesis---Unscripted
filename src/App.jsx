@@ -309,7 +309,7 @@ export default function App() {
           </div>
 
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            GENESIS 2026 • Amrita InnovateX
+            GENESIS 2026 • Amrita Yukti
           </div>
         </div>
       </footer>
@@ -369,7 +369,7 @@ export default function App() {
           </p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.72rem', color: '#94a3b8' }}>
             <span>Live Sync: Active • Just now</span>
-            <span style={{ color: 'var(--amrita-maroon)', fontWeight: 600 }}>Amrita InnovateX</span>
+            <span style={{ color: 'var(--amrita-maroon)', fontWeight: 600 }}>Amrita Yukti</span>
           </div>
         </div>
       )}
