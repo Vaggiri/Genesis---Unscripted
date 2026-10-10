@@ -259,17 +259,14 @@ export const registerUser = ({
     name: cleanName,
     identifier: cleanId,
     roll_no: role === 'student' ? cleanId.toUpperCase() : undefined,
-    emp_id: (role === 'faculty' || role === 'warden' || role === 'workers_manager' || role === 'admin') ? cleanId.toUpperCase() : undefined,
-    phone: role === 'parent' ? cleanId : undefined,
+    emp_id: (role === 'faculty' || role === 'admin') ? cleanId.toUpperCase() : undefined,
     email: cleanEmail || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@amrita.edu`,
     password: cleanPass,
     department,
     batch,
     semester: 'Semester 1',
     attendance: '95.0%',
-    cgpa: '9.10',
-    ward_name: role === 'parent' ? 'Adithya K.' : undefined,
-    ward_roll: role === 'parent' ? 'CB.EN.U4CSE23012' : undefined
+    cgpa: '9.10'
   };
 
   registered.push(newUser);

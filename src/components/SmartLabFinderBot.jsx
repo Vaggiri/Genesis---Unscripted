@@ -16,6 +16,8 @@ import {
   Zap
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { INNOVATION_LABS } from '../services/labsData';
 
 export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
@@ -340,7 +342,7 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
                   }}
                 >
                   {isBot ? (
-                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>{m.text}</ReactMarkdown>
                   ) : (
                     <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}</span>
                   )}

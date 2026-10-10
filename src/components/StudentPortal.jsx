@@ -223,7 +223,7 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
                       {b.status === 'approved' ? (
                         <div style={{ color: 'var(--status-available)', fontWeight: 700, fontSize: '0.785rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <CheckCircle2 size={16} />
-                          <span>Pass Ready for Lab Entry</span>
+                          <span>Approved • Slot Reserved</span>
                         </div>
                       ) : (
                         <div style={{ color: 'var(--status-flagged)', fontWeight: 600, fontSize: '0.75rem' }}>
