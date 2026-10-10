@@ -5,6 +5,7 @@ import StudentPortal from './components/StudentPortal';
 import FacultyPortal from './components/FacultyPortal';
 import AdminPortal from './components/AdminPortal';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
+import AiTunnelModal from './components/AiTunnelModal';
 import { getStoredUser, setStoredUser } from './services/auth';
 import { getStoredBookings, saveStoredBookings } from './services/labsData';
 import { api } from './services/api';
@@ -13,6 +14,7 @@ export default function App() {
   // If stored user exists in sessionStorage/localStorage, initialize with it; default to null (shows Login Page)
   const [currentUser, setCurrentUser] = useState(() => getStoredUser() || null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
 
   // Global Centralized Booking Requests State (persisted)
   const [bookings, setBookings] = useState(() => getStoredBookings());
@@ -239,6 +241,7 @@ export default function App() {
         currentUser={currentUser}
         onLogout={handleLogout}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenAiModal={() => setIsAiModalOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -374,6 +377,12 @@ export default function App() {
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
         onConfigSaved={() => refreshGlobalData()}
+      />
+
+      {/* OmniRoute & ngrok Cloud Bridge Modal */}
+      <AiTunnelModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
       />
     </div>
   );

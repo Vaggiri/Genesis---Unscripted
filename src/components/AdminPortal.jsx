@@ -620,6 +620,32 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
         </div>
       )}
 
+      {/* Mobile Bottom Navigation */}
+      <div className="mobile-bottom-nav">
+        {[
+          { id: 'cms', label: 'Pages', icon: Layers },
+          { id: 'classrooms', label: 'Rooms', icon: Building },
+          { id: 'timetables', label: 'Timetable', icon: Calendar },
+          { id: 'reports', label: 'Reports', icon: Flag },
+          { id: 'settings', label: 'Settings', icon: Sliders }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Icon size={20} />
+              <span style={{ fontSize: '11px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                {tab.label}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
     </div>
   );
 }

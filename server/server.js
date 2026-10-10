@@ -884,14 +884,81 @@ router.patch('/innovation/bookings/:id', (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// OMNIROUTE AI INTEGRATION (Model: 'vag', Endpoint: http://localhost:20128/v1)
+// OMNIROUTE & NGROK TUNNEL AI CONFIGURATION & PROXY
 // -----------------------------------------------------------------------------
+const normalizeAiBaseUrl = (url) => {
+  if (!url) return 'http://localhost:20128/v1';
+  let clean = url.trim().replace(/\/+$/, '');
+  if (!clean.endsWith('/v1')) {
+    clean += '/v1';
+  }
+  return clean;
+};
+
+let currentAiConfig = {
+  baseUrl: normalizeAiBaseUrl(process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1'),
+  model: process.env.OMNIROUTE_MODEL || 'vag',
+  apiKey: process.env.OMNIROUTE_API_KEY || 'sk-omniroute'
+};
+
+// Check active AI / ngrok status & test connection
+router.get('/ai/config', async (req, res) => {
+  const isNgrok = currentAiConfig.baseUrl.includes('ngrok');
+  let connectionStatus = 'unknown';
+  let errorDetails = null;
+
+  try {
+    const testResp = await fetch(`${currentAiConfig.baseUrl}/models`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${currentAiConfig.apiKey}`,
+        'ngrok-skip-browser-warning': 'true',
+        'User-Agent': 'Amrita-InnovateX/1.0'
+      },
+      signal: AbortSignal.timeout(4000)
+    });
+    if (testResp.ok) {
+      connectionStatus = 'connected';
+    } else {
+      connectionStatus = 'unreachable';
+      errorDetails = `HTTP ${testResp.status} ${testResp.statusText}`;
+    }
+  } catch (e) {
+    connectionStatus = 'offline';
+    errorDetails = e.message;
+  }
+
+  res.json({
+    success: true,
+    config: currentAiConfig,
+    isNgrok,
+    connectionStatus,
+    errorDetails
+  });
+});
+
+// Update AI endpoint on the fly (e.g. when a new ngrok URL is generated)
+router.post('/ai/config', (req, res) => {
+  const { baseUrl, model, apiKey } = req.body;
+  if (baseUrl) {
+    currentAiConfig.baseUrl = normalizeAiBaseUrl(baseUrl);
+  }
+  if (model) {
+    currentAiConfig.model = model.trim();
+  }
+  if (apiKey) {
+    currentAiConfig.apiKey = apiKey.trim();
+  }
+  console.log('🔄 Updated AI Bridge Config:', currentAiConfig);
+  res.json({ success: true, config: currentAiConfig });
+});
+
 router.post('/ai/chat', async (req, res) => {
   try {
     const { messages, userRole, userName } = req.body;
-    const omniBase = process.env.OMNIROUTE_BASE_URL || 'http://localhost:20128/v1';
-    const model = process.env.OMNIROUTE_MODEL || 'vag';
-    const apiKey = process.env.OMNIROUTE_API_KEY || 'sk-omniroute';
+    const omniBase = normalizeAiBaseUrl(currentAiConfig.baseUrl);
+    const model = currentAiConfig.model || 'vag';
+    const apiKey = currentAiConfig.apiKey || 'sk-omniroute';
 
     const systemPrompt = `You are "Amrita InnovateX AI", the intelligent facility operating system for Amrita Vishwa Vidyapeetham Coimbatore Campus.
 Your goal is to converse with students and faculty, analyze project requirements, suggest optimal campus labs and machines, verify component stocks and software toolchains, and seamlessly help book facilities without requiring manual form filling.
@@ -950,7 +1017,9 @@ Interaction Rules:
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Authorization': `Bearer ${apiKey}`,
+        'ngrok-skip-browser-warning': 'true',
+        'User-Agent': 'Amrita-InnovateX/1.0'
       },
       body: JSON.stringify({
         model,
@@ -961,8 +1030,12 @@ Interaction Rules:
 
     if (!response.ok) {
       const errText = await response.text();
-      console.warn('OmniRoute error response:', response.status, errText);
-      return res.status(502).json({ error: 'OmniRoute error', details: errText });
+      console.warn('OmniRoute/ngrok error response:', response.status, errText);
+      return res.status(502).json({ 
+        error: 'AI engine error', 
+        details: errText,
+        tip: omniBase.includes('ngrok') ? 'Check if your ngrok tunnel is active and pointing to port 20128' : undefined
+      });
     }
 
     const data = await response.json();
@@ -971,11 +1044,16 @@ Interaction Rules:
     return res.json({
       success: true,
       model,
-      reply: replyContent
+      reply: replyContent,
+      endpoint: omniBase
     });
   } catch (err) {
-    console.error('Error proxying to OmniRoute:', err.message);
-    res.status(500).json({ error: 'Failed to reach OmniRoute AI', message: err.message });
+    console.error('Error proxying to OmniRoute / ngrok:', err.message);
+    res.status(500).json({ 
+      error: 'Failed to reach AI engine', 
+      message: err.message,
+      tip: 'Verify OmniRoute is running on port 20128 or check your ngrok tunnel link.' 
+    });
   }
 });
 

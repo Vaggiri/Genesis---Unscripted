@@ -10,14 +10,16 @@ import {
   Users,
   BookOpen,
   Wrench,
-  Lock
+  Lock,
+  Zap
 } from 'lucide-react';
 import { getSupabaseConfig } from '../services/supabaseClient';
 
 export default function Navbar({ 
   currentUser, 
   onLogout, 
-  onOpenSupabaseModal 
+  onOpenSupabaseModal,
+  onOpenAiModal
 }) {
   const config = getSupabaseConfig();
   const isSupabaseActive = Boolean(config.url && config.key);
@@ -72,8 +74,8 @@ export default function Navbar({
         </div>
 
         {/* Right Tools: User Session Info & Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+
           {/* Cloud Database Indicator */}
           <button
             onClick={onOpenSupabaseModal}
@@ -92,29 +94,50 @@ export default function Navbar({
             }}
             title="Supabase Database Status"
           >
-            <Database size={13} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
-            <span style={{ display: 'none', sm: 'inline' }}>{isSupabaseActive ? 'DB Connected' : 'DB'}</span>
+            <Database size={14} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
+            <span className="hide-mobile">{isSupabaseActive ? 'DB Connected' : 'DB'}</span>
+          </button>
+
+          {/* AI Engine & ngrok Bridge Indicator */}
+          <button
+            onClick={onOpenAiModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.4rem 0.65rem',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: '#fffbeb',
+              border: '1px solid #fde68a',
+              color: '#92400e',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="OmniRoute AI & ngrok Bridge Settings"
+          >
+            <Zap size={14} color="#d97706" />
+            <span className="hide-mobile">AI Bridge</span>
           </button>
 
           {/* User Session Profile & Logout */}
           {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                padding: '0.35rem 0.75rem',
-                backgroundColor: 'var(--bg-surface-alt)',
-                border: '1px solid var(--border-light)',
-                borderRadius: 'var(--radius-full)',
-                fontSize: '0.775rem'
-              }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div
+                className="hide-mobile"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.35rem 0.75rem',
+                  backgroundColor: 'var(--bg-surface-alt)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: 'var(--radius-full)',
+                  fontSize: '0.775rem'
+                }}>
                 <RoleIcon size={14} color="var(--amrita-maroon)" />
                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
                   {currentUser.name}
-                </span>
-                <span className="badge badge-maroon" style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', textTransform: 'capitalize' }}>
-                  {currentUser.role.replace('_', ' ')}
                 </span>
               </div>
 
@@ -124,7 +147,7 @@ export default function Navbar({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.35rem',
-                  padding: '0.4rem 0.75rem',
+                  padding: '0.4rem 0.65rem',
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--border-light)',
                   backgroundColor: '#ffffff',
@@ -133,14 +156,14 @@ export default function Navbar({
                   fontWeight: 600,
                   cursor: 'pointer'
                 }}
-                title="Switch Role or Log Out"
+                title="Log Out"
               >
-                <LogOut size={13} />
-                <span>Switch Role</span>
+                <LogOut size={14} />
+                <span className="hide-mobile">Log Out</span>
               </button>
             </div>
           ) : (
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+            <span className="hide-mobile" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
               Authentication Required
             </span>
           )}

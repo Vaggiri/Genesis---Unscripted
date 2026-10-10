@@ -365,17 +365,22 @@ button, input, select, textarea {
 
 @media (max-width: 768px) {
   .amrita-tile-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.65rem 0.75rem;
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
   .amrita-tile-grid {
-    grid-template-columns: 1fr;
-    gap: 0.55rem;
+    display: none;
   }
 }
+
+@media (max-width: 768px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
 
 .amrita-ribbon-tile {
   background-color: #ffffff;
