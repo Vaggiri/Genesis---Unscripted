@@ -7,80 +7,105 @@ import {
   Wrench, 
   Lock, 
   ArrowRight, 
-  AlertCircle,
-  KeyRound,
-  Eye,
-  EyeOff,
-  Sparkles,
-  CheckCircle2
+  AlertCircle, 
+  CheckCircle2, 
+  Eye, 
+  EyeOff, 
+  UserPlus, 
+  LogIn,
+  Sparkles
 } from 'lucide-react';
-import { ROLE_CREDENTIALS, verifyAndAuthenticate, setStoredUser } from '../services/auth';
+import { 
+  loginWithCredentials, 
+  registerUser, 
+  detectRoleFromIdentifier, 
+  setStoredUser,
+  ROLE_CREDENTIALS 
+} from '../services/auth';
 
 export default function LoginPage({ onLoginSuccess }) {
-  const [selectedRole, setSelectedRole] = useState('student');
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+
+  // Login form state
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  const roles = [
-    { 
-      id: 'student', 
-      label: 'Student', 
-      icon: GraduationCap, 
-      fieldLabel: 'Student Roll Number', 
-      placeholder: 'e.g. CB.EN.U4CSE23012' 
-    },
-    { 
-      id: 'parent', 
-      label: 'Parent', 
-      icon: Users, 
-      fieldLabel: 'Registered Mobile Number', 
-      placeholder: 'e.g. 9840123456' 
-    },
-    { 
-      id: 'faculty', 
-      label: 'Faculty', 
-      icon: BookOpen, 
-      fieldLabel: 'Faculty Employee ID', 
-      placeholder: 'e.g. AMR-FAC-209' 
-    },
-    { 
-      id: 'warden', 
-      label: 'Warden', 
-      icon: ShieldCheck, 
-      fieldLabel: 'Warden ID', 
-      placeholder: 'e.g. AMR-WRD-044' 
-    },
-    { 
-      id: 'workers_manager', 
-      label: 'Workers Mgr', 
-      icon: Wrench, 
-      fieldLabel: 'Worker / Maintenance ID', 
-      placeholder: 'e.g. AMR-MTN-301' 
-    },
-    { 
-      id: 'admin', 
-      label: 'Admin', 
-      icon: Lock, 
-      fieldLabel: 'Administrator Username', 
-      placeholder: 'e.g. admin' 
+  // Signup form state
+  const [signupRole, setSignupRole] = useState('student');
+  const [signupName, setSignupName] = useState('');
+  const [signupId, setSignupId] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupDept, setSignupDept] = useState('Computer Science & Engineering');
+  const [signupBatch, setSignupBatch] = useState('B.Tech CSE-B (2024-2028)');
+  const [signupSuccess, setSignupSuccess] = useState('');
+
+  // Real-time role detection as user types their username/roll number
+  const detectedRole = detectRoleFromIdentifier(identifier);
+
+  const getRoleDetails = (role) => {
+    switch (role) {
+      case 'student': return { label: 'Student', icon: GraduationCap, color: '#15803d', bg: '#f0fdf4' };
+      case 'parent': return { label: 'Parent', icon: Users, color: '#0369a1', bg: '#f0f9ff' };
+      case 'faculty': return { label: 'Faculty', icon: BookOpen, color: '#7c3aed', bg: '#f5f3ff' };
+      case 'warden': return { label: 'Hostel Warden', icon: ShieldCheck, color: '#c2410c', bg: '#fff7ed' };
+      case 'workers_manager': return { label: 'Workers Manager', icon: Wrench, color: '#b45309', bg: '#fefce8' };
+      case 'admin': return { label: 'Administrator', icon: Lock, color: '#be123c', bg: '#fff1f2' };
+      default: return null;
     }
-  ];
-
-  const currentRoleConfig = roles.find(r => r.id === selectedRole) || roles[0];
-  const roleCreds = ROLE_CREDENTIALS[selectedRole] || ROLE_CREDENTIALS.student;
-
-  const handleRoleSelect = (roleId) => {
-    setSelectedRole(roleId);
-    setError('');
-    // Clear inputs when role is switched so the user enters credentials specifically for that role
-    setIdentifier('');
-    setPassword('');
   };
 
-  const handleAutoFill = () => {
-    const cred = ROLE_CREDENTIALS[selectedRole];
+  const detectedInfo = detectedRole ? getRoleDetails(detectedRole) : null;
+
+  // Handle Login submission
+  const handleLoginSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+
+    const result = loginWithCredentials(identifier, password);
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
+    // Successfully resolved role and validated credentials
+    setStoredUser(result.user);
+    onLoginSuccess(result.user);
+  };
+
+  // Handle Sign Up submission
+  const handleSignupSubmit = (e) => {
+    e.preventDefault();
+    setError('');
+    setSignupSuccess('');
+
+    const result = registerUser({
+      role: signupRole,
+      name: signupName,
+      identifier: signupId,
+      email: signupEmail,
+      password: signupPassword,
+      department: signupDept,
+      batch: signupBatch
+    });
+
+    if (!result.success) {
+      setError(result.error);
+      return;
+    }
+
+    setSignupSuccess(`Account created successfully as ${signupRole}! Redirecting to your portal...`);
+    setTimeout(() => {
+      setStoredUser(result.user);
+      onLoginSuccess(result.user);
+    }, 800);
+  };
+
+  // Quick Demo Auto-Fill Helper for Reviewers
+  const handleDemoFill = (roleKey) => {
+    const cred = ROLE_CREDENTIALS[roleKey];
     if (cred) {
       setIdentifier(cred.exampleId);
       setPassword(cred.examplePass);
@@ -88,34 +113,18 @@ export default function LoginPage({ onLoginSuccess }) {
     }
   };
 
-  const handleLoginSubmit = (e) => {
-    e.preventDefault();
-    setError('');
-
-    // Strict credential verification based solely on selected role and entered credentials
-    const result = verifyAndAuthenticate(selectedRole, identifier, password);
-    if (!result.success) {
-      setError(result.error);
-      return;
-    }
-
-    // Success: store user and navigate strictly to the respective authenticated role's portal
-    setStoredUser(result.user);
-    onLoginSuccess(result.user);
-  };
-
   return (
     <div style={{
-      minHeight: '82vh',
+      minHeight: '84vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem 1rem'
     }}>
-      <div style={{ maxWidth: '490px', width: '100%' }}>
+      <div style={{ maxWidth: '470px', width: '100%' }}>
         
         {/* Brand Header */}
-        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.65rem' }}>
           <div style={{
             width: '54px',
             height: '54px',
@@ -128,7 +137,7 @@ export default function LoginPage({ onLoginSuccess }) {
             fontWeight: 800,
             fontSize: '1.5rem',
             margin: '0 auto 0.75rem',
-            boxShadow: '0 6px 16px rgba(164, 18, 63, 0.3)'
+            boxShadow: '0 6px 16px rgba(164, 18, 63, 0.28)'
           }}>
             A
           </div>
@@ -136,7 +145,7 @@ export default function LoginPage({ onLoginSuccess }) {
             fontSize: '1.85rem', 
             fontWeight: 800, 
             color: 'var(--text-main)', 
-            marginBottom: '0.25rem',
+            marginBottom: '0.2rem',
             letterSpacing: '-0.02em'
           }}>
             Campus <span style={{ color: 'var(--amrita-maroon)' }}>Setu</span>
@@ -160,249 +169,487 @@ export default function LoginPage({ onLoginSuccess }) {
             padding: '0.2rem 0.75rem',
             borderRadius: 'var(--radius-full)'
           }}>
-            Amrita Vishwa Vidyapeetham • Problem Statement #9
+            Unified Amrita Single Sign-On (SSO)
           </div>
         </div>
 
-        {/* Main Authentication Card */}
+        {/* Authentication Card */}
         <div className="card-amrita" style={{ 
-          padding: '1.5rem',
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.06)'
+          padding: '1.65rem',
+          boxShadow: '0 8px 26px rgba(0, 0, 0, 0.06)'
         }}>
           
-          {/* Step 1: Role Selector Grid */}
-          <div style={{ marginBottom: '1.35rem' }}>
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              marginBottom: '0.55rem' 
-            }}>
-              <label style={{ 
-                fontSize: '0.75rem', 
-                fontWeight: 700, 
-                color: 'var(--text-secondary)', 
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em'
-              }}>
-                1. Select Your Role
-              </label>
-              <span style={{ fontSize: '0.725rem', color: 'var(--amrita-maroon)', fontWeight: 600 }}>
-                Active: {currentRoleConfig.label}
-              </span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-              {roles.map(r => {
-                const Icon = r.icon;
-                const isSelected = selectedRole === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => handleRoleSelect(r.id)}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '5px',
-                      padding: '0.75rem 0.25rem',
-                      minHeight: '62px',
-                      borderRadius: 'var(--radius-md)',
-                      border: isSelected ? '2px solid var(--amrita-maroon)' : '1px solid var(--border-light)',
-                      backgroundColor: isSelected ? 'var(--amrita-maroon-bg)' : '#ffffff',
-                      color: isSelected ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
-                      fontWeight: isSelected ? 700 : 500,
-                      fontSize: '0.775rem',
-                      cursor: 'pointer',
-                      transition: 'var(--transition)'
-                    }}
-                  >
-                    <Icon size={19} color={isSelected ? 'var(--amrita-maroon)' : 'var(--text-muted)'} />
-                    <span>{r.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+          {/* Mode Tabs: Sign In / Sign Up */}
+          <div style={{
+            display: 'flex',
+            backgroundColor: 'var(--bg-surface-alt)',
+            padding: '4px',
+            borderRadius: 'var(--radius-md)',
+            marginBottom: '1.35rem',
+            border: '1px solid var(--border-light)'
+          }}>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('login'); setError(''); }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '0.55rem',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                backgroundColor: authMode === 'login' ? '#ffffff' : 'transparent',
+                color: authMode === 'login' ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                fontWeight: authMode === 'login' ? 700 : 500,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                boxShadow: authMode === 'login' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                transition: 'var(--transition)'
+              }}
+            >
+              <LogIn size={15} />
+              <span>Sign In</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setAuthMode('signup'); setError(''); }}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                padding: '0.55rem',
+                borderRadius: 'var(--radius-sm)',
+                border: 'none',
+                backgroundColor: authMode === 'signup' ? '#ffffff' : 'transparent',
+                color: authMode === 'signup' ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                fontWeight: authMode === 'signup' ? 700 : 500,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                boxShadow: authMode === 'signup' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
+                transition: 'var(--transition)'
+              }}
+            >
+              <UserPlus size={15} />
+              <span>Sign Up / Register</span>
+            </button>
           </div>
 
-          {/* Step 2: Login Form */}
-          <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
-            
-            <div style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              borderTop: '1px solid var(--border-light)',
-              paddingTop: '0.9rem'
+          {/* Feedback Banners */}
+          {error && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.6rem',
+              padding: '0.75rem 0.9rem',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--status-occupied-bg)',
+              color: 'var(--status-occupied-text)',
+              border: '1px solid var(--status-occupied-border)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              marginBottom: '1.15rem'
             }}>
-              <label style={{ 
-                fontSize: '0.75rem', 
-                fontWeight: 700, 
-                color: 'var(--text-secondary)', 
-                textTransform: 'uppercase',
-                letterSpacing: '0.04em'
-              }}>
-                2. Enter Credentials for {currentRoleConfig.label}
-              </label>
+              <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>{error}</span>
             </div>
+          )}
 
-            {/* Error Banner */}
-            {error && (
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '0.6rem',
-                padding: '0.75rem 0.9rem',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--status-occupied-bg)',
-                color: 'var(--status-occupied-text)',
-                border: '1px solid var(--status-occupied-border)',
-                fontSize: '0.785rem',
-                fontWeight: 600,
-                lineHeight: 1.35
-              }}>
-                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                <span>{error}</span>
-              </div>
-            )}
-
-            {/* Role-Specific Identifier Input */}
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '0.76rem', 
-                fontWeight: 700, 
-                color: 'var(--text-main)', 
-                marginBottom: '0.3rem' 
-              }}>
-                {currentRoleConfig.fieldLabel} <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
-              </label>
-              <input
-                type="text"
-                placeholder={currentRoleConfig.placeholder}
-                value={identifier}
-                onChange={(e) => {
-                  setIdentifier(e.target.value);
-                  setError('');
-                }}
-                required
-                className="form-input"
-                style={{ 
-                  minHeight: '44px',
-                  fontSize: '0.875rem',
-                  fontFamily: 'monospace'
-                }}
-              />
+          {signupSuccess && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              padding: '0.75rem 0.9rem',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--status-available-bg)',
+              color: 'var(--status-available-text)',
+              border: '1px solid var(--status-available-border)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              marginBottom: '1.15rem'
+            }}>
+              <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+              <span>{signupSuccess}</span>
             </div>
+          )}
 
-            {/* Password Input with Visibility Toggle */}
-            <div>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '0.76rem', 
-                fontWeight: 700, 
-                color: 'var(--text-main)', 
-                marginBottom: '0.3rem' 
-              }}>
-                Password / Passcode <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
-              </label>
-              <div style={{ position: 'relative' }}>
+          {/* MODE 1: UNIFIED SIGN IN (Username & Password Only) */}
+          {authMode === 'login' ? (
+            <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              
+              {/* Username / Roll Number Input */}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                  <label style={{ fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                    Username / Roll Number / ID <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                  </label>
+
+                  {/* Dynamic Role Detection Badge */}
+                  {detectedInfo && (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      color: detectedInfo.color,
+                      backgroundColor: detectedInfo.bg,
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${detectedInfo.color}33`
+                    }}>
+                      <detectedInfo.icon size={12} />
+                      <span>{detectedInfo.label} Detected</span>
+                    </span>
+                  )}
+                </div>
+
                 <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter password..."
-                  value={password}
+                  type="text"
+                  placeholder="e.g. CB.EN.U4CSE23012, 9840123456, or admin"
+                  value={identifier}
                   onChange={(e) => {
-                    setPassword(e.target.value);
+                    setIdentifier(e.target.value);
                     setError('');
                   }}
                   required
                   className="form-input"
-                  style={{ 
+                  style={{
                     minHeight: '44px',
                     fontSize: '0.875rem',
-                    paddingRight: '40px'
+                    fontFamily: identifier.startsWith('CB.EN') || identifier.startsWith('AMR') ? 'monospace' : 'inherit'
                   }}
+                  autoFocus
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text-muted)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '4px'
-                  }}
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+                <span style={{ display: 'block', fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                  Auto-redirects to respective portal (Student, Parent, Faculty, Warden, Worker, Admin).
+                </span>
               </div>
-            </div>
 
-            {/* Reviewer / Evaluator Demo Auto-Fill Box */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-              fontSize: '0.725rem',
-              color: 'var(--text-secondary)',
-              backgroundColor: 'var(--bg-surface-alt)',
-              border: '1px dashed var(--border-medium)',
-              padding: '0.5rem 0.75rem',
-              borderRadius: 'var(--radius-sm)'
-            }}>
-              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                <span style={{ color: 'var(--text-muted)' }}>Demo Creds: </span>
-                <strong>{roleCreds.exampleId}</strong> (<code>{roleCreds.examplePass}</code>)
+              {/* Password Input */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+                  Password / Passcode <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter password..."
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError('');
+                    }}
+                    required
+                    className="form-input"
+                    style={{ minHeight: '44px', fontSize: '0.875rem', paddingRight: '42px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text-muted)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '4px'
+                    }}
+                    title={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
+
+              {/* Submit Button */}
               <button
-                type="button"
-                onClick={handleAutoFill}
+                type="submit"
+                className="btn-amrita"
                 style={{
-                  border: 'none',
-                  background: 'none',
-                  color: 'var(--amrita-maroon)',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                  flexShrink: 0,
-                  fontSize: '0.725rem'
+                  width: '100%',
+                  minHeight: '46px',
+                  marginTop: '0.3rem',
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
                 }}
               >
-                Auto-Fill
+                <span>
+                  {detectedInfo ? `Sign In to ${detectedInfo.label} Portal` : 'Sign In to Campus Setu'}
+                </span>
+                <ArrowRight size={17} />
               </button>
-            </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              className="btn-amrita"
-              style={{ 
-                width: '100%', 
-                minHeight: '46px',
-                marginTop: '0.4rem',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <span>Sign In to {currentRoleConfig.label} Portal</span>
-              <ArrowRight size={17} />
-            </button>
-          </form>
+              {/* Quick Evaluator / Demo Helper Bar */}
+              <div style={{
+                marginTop: '0.65rem',
+                paddingTop: '0.85rem',
+                borderTop: '1px dashed var(--border-light)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '0.45rem'
+                }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    💡 Quick Fill Demo Credentials (For Testing)
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('student')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    🎓 Student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('faculty')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    📖 Faculty
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('parent')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    👨‍👩‍👧 Parent
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('warden')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    🛡️ Warden
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('workers_manager')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--text-main)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    🔧 Worker Mgr
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDemoFill('admin')}
+                    style={{
+                      padding: '0.35rem 0.25rem',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-light)',
+                      backgroundColor: 'var(--bg-surface-alt)',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: 'var(--amrita-maroon)',
+                      cursor: 'pointer',
+                      textAlign: 'center'
+                    }}
+                  >
+                    🔒 Admin
+                  </button>
+                </div>
+              </div>
+
+            </form>
+          ) : (
+            /* MODE 2: SIGN UP / REGISTER NEW USER */
+            <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                  Registering As (Role) <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                </label>
+                <select
+                  value={signupRole}
+                  onChange={(e) => setSignupRole(e.target.value)}
+                  className="form-input"
+                  style={{ minHeight: '42px', fontSize: '0.85rem' }}
+                >
+                  <option value="student">Student (Roll No: CB.EN.U4...)</option>
+                  <option value="parent">Parent (10-Digit Mobile)</option>
+                  <option value="faculty">Faculty (AMR-FAC-...)</option>
+                  <option value="warden">Hostel Warden (AMR-WRD-...)</option>
+                  <option value="workers_manager">Maintenance / Workers Manager</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                  Full Name <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Adithya K."
+                  value={signupName}
+                  onChange={(e) => setSignupName(e.target.value)}
+                  required
+                  className="form-input"
+                  style={{ minHeight: '42px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                  {signupRole === 'student' ? 'Student Roll Number' : signupRole === 'parent' ? 'Parent Mobile Number' : 'Employee ID'} <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder={
+                    signupRole === 'student' ? 'e.g. CB.EN.U4CSE23999' :
+                    signupRole === 'parent' ? 'e.g. 9840123456' :
+                    'e.g. AMR-FAC-209'
+                  }
+                  value={signupId}
+                  onChange={(e) => setSignupId(e.target.value)}
+                  required
+                  className="form-input"
+                  style={{ minHeight: '42px', fontSize: '0.85rem', fontFamily: 'monospace' }}
+                />
+              </div>
+
+              {signupRole === 'student' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Department
+                    </label>
+                    <input
+                      type="text"
+                      value={signupDept}
+                      onChange={(e) => setSignupDept(e.target.value)}
+                      className="form-input"
+                      style={{ minHeight: '38px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                      Batch
+                    </label>
+                    <input
+                      type="text"
+                      value={signupBatch}
+                      onChange={(e) => setSignupBatch(e.target.value)}
+                      className="form-input"
+                      style={{ minHeight: '38px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                  Official Email Address
+                </label>
+                <input
+                  type="email"
+                  placeholder={signupRole === 'student' ? 'adithya@cb.students.amrita.edu' : 'name@cb.amrita.edu'}
+                  value={signupEmail}
+                  onChange={(e) => setSignupEmail(e.target.value)}
+                  className="form-input"
+                  style={{ minHeight: '42px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
+                  Create Password <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Create password..."
+                  value={signupPassword}
+                  onChange={(e) => setSignupPassword(e.target.value)}
+                  required
+                  className="form-input"
+                  style={{ minHeight: '42px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="btn-amrita"
+                style={{
+                  width: '100%',
+                  minHeight: '46px',
+                  marginTop: '0.4rem',
+                  fontSize: '0.875rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <span>Create Account & Sign In</span>
+                <ArrowRight size={17} />
+              </button>
+
+            </form>
+          )}
 
         </div>
 

@@ -60,209 +60,319 @@ export const DEMO_USERS = {
   }
 };
 
-// Expected credentials reference for each role
+// Registered users local persistence
+export const getRegisteredUsers = () => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('campussetu_registered_users');
+      if (raw) return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.warn('Failed to parse registered users:', e);
+  }
+  return [];
+};
+
+export const saveRegisteredUsers = (users) => {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('campussetu_registered_users', JSON.stringify(users));
+    }
+  } catch (e) {
+    console.warn('Failed to save registered users:', e);
+  }
+};
+
+// Expected credentials reference for quick review / help
 export const ROLE_CREDENTIALS = {
   student: {
+    label: 'Student',
     exampleId: 'CB.EN.U4CSE23012',
     examplePass: 'student123',
-    hint: 'Student Roll No (e.g. CB.EN.U4CSE23012)'
+    hint: 'Starts with CB.EN.U4... (e.g. CB.EN.U4CSE23012)'
   },
   parent: {
+    label: 'Parent',
     exampleId: '9840123456',
     examplePass: 'parent123',
-    hint: 'Registered 10-digit Mobile (e.g. 9840123456)'
+    hint: '10-digit mobile number (e.g. 9840123456)'
   },
   faculty: {
+    label: 'Faculty',
     exampleId: 'AMR-FAC-209',
     examplePass: 'faculty123',
-    hint: 'Faculty Employee ID (e.g. AMR-FAC-209)'
+    hint: 'Faculty ID (e.g. AMR-FAC-209)'
   },
   warden: {
+    label: 'Warden',
     exampleId: 'AMR-WRD-044',
     examplePass: 'warden123',
     hint: 'Warden ID (e.g. AMR-WRD-044)'
   },
   workers_manager: {
+    label: 'Workers Mgr',
     exampleId: 'AMR-MTN-301',
     examplePass: 'worker123',
-    hint: 'Facility Manager ID (e.g. AMR-MTN-301)'
+    hint: 'Maintenance ID (e.g. AMR-MTN-301)'
   },
   admin: {
+    label: 'Admin',
     exampleId: 'admin',
     examplePass: 'admin123',
-    hint: 'Admin Username (e.g. admin)'
+    hint: 'Admin username: admin'
   }
 };
 
-// Verifies credentials strictly based on the selected role and input
-export const verifyAndAuthenticate = (role, identifier, password) => {
+/**
+ * Automatically detects the campus role based on the entered username / ID / Roll Number
+ * @param {string} identifier 
+ * @returns {string|null} role ('student' | 'parent' | 'faculty' | 'warden' | 'workers_manager' | 'admin' | null)
+ */
+export const detectRoleFromIdentifier = (identifier) => {
+  if (!identifier) return null;
+  const clean = identifier.trim();
+  const lower = clean.toLowerCase();
+
+  // First check if identifier matches any custom registered user
+  const registered = getRegisteredUsers();
+  const matchedCustom = registered.find(u => 
+    (u.identifier && u.identifier.toLowerCase() === lower) ||
+    (u.email && u.email.toLowerCase() === lower) ||
+    (u.roll_no && u.roll_no.toLowerCase() === lower)
+  );
+  if (matchedCustom) {
+    return matchedCustom.role;
+  }
+
+  // 1. Admin: 'admin', 'sysadmin', 'amr-admin...'
+  if (lower === 'admin' || lower === 'sysadmin' || lower.startsWith('amr-admin') || lower === 'admin@cb.amrita.edu') {
+    return 'admin';
+  }
+
+  // 2. Student: Amrita roll number format (CB.EN.U4..., etc.) or student email / keywords
+  if (
+    lower.startsWith('cb.en') || 
+    lower.includes('u4cse') || 
+    lower.includes('u4aie') || 
+    lower.includes('u4ece') || 
+    lower.includes('u4mee') || 
+    lower.includes('u4') ||
+    lower.includes('student') || 
+    lower.includes('@cb.students.amrita.edu') ||
+    lower === 'adithya'
+  ) {
+    return 'student';
+  }
+
+  // 3. Parent: 10-digit mobile number or 'parent' keywords
+  const isPhone = /^[6-9]\d{9}$/.test(lower) || /^\+?91[6-9]\d{9}$/.test(lower) || /^[0-9]{10}$/.test(lower);
+  if (isPhone || lower.includes('parent') || lower === 'lakshmi') {
+    return 'parent';
+  }
+
+  // 4. Faculty: 'AMR-FAC-...', 'FAC-...', or faculty keywords
+  if (
+    lower.startsWith('amr-fac') || 
+    lower.startsWith('fac-') || 
+    lower.includes('faculty') || 
+    lower.includes('prof') || 
+    lower === 'swaminathan'
+  ) {
+    return 'faculty';
+  }
+
+  // 5. Warden: 'AMR-WRD-...', 'WRD-...', or warden keywords
+  if (
+    lower.startsWith('amr-wrd') || 
+    lower.startsWith('wrd-') || 
+    lower.includes('warden') || 
+    lower === 'murugesh'
+  ) {
+    return 'warden';
+  }
+
+  // 6. Workers Manager: 'AMR-MTN-...', 'MTN-...', 'WRK-...'
+  if (
+    lower.startsWith('amr-mtn') || 
+    lower.startsWith('mtn-') || 
+    lower.startsWith('wrk-') || 
+    lower.includes('maintenance') || 
+    lower.includes('worker') || 
+    lower === 'ramesh'
+  ) {
+    return 'workers_manager';
+  }
+
+  return null;
+};
+
+/**
+ * Unified Login Authenticator:
+ * Accepts only username and password. Automatically resolves role from credentials
+ * and verifies passwords.
+ * @param {string} identifier 
+ * @param {string} password 
+ * @returns {object} { success: boolean, role?: string, user?: object, error?: string }
+ */
+export const loginWithCredentials = (identifier, password) => {
   const cleanId = (identifier || '').trim();
   const lowerId = cleanId.toLowerCase();
   const cleanPass = (password || '').trim();
 
   if (!cleanId) {
-    return { success: false, error: 'Please enter your ID, Roll number or Username.' };
+    return { success: false, error: 'Please enter your username, roll number, or employee ID.' };
   }
   if (!cleanPass) {
     return { success: false, error: 'Please enter your password.' };
   }
 
-  // Cross-role safety checks: inform user if they entered credentials of a different role
-  if (role !== 'admin' && (lowerId === 'admin' || lowerId.startsWith('amr-admin'))) {
-    return {
-      success: false,
-      error: 'Administrator credentials entered. Please select the "Admin" role card above to sign in.'
-    };
-  }
-  if (role !== 'student' && (lowerId.startsWith('cb.en') || lowerId.includes('u4cse') || lowerId.includes('student'))) {
-    return {
-      success: false,
-      error: 'Student Roll Number entered. Please select the "Student" role card above to sign in.'
-    };
-  }
-  if (role !== 'faculty' && lowerId.startsWith('amr-fac')) {
-    return {
-      success: false,
-      error: 'Faculty Employee ID entered. Please select the "Faculty" role card above to sign in.'
-    };
-  }
-  if (role !== 'warden' && lowerId.startsWith('amr-wrd')) {
-    return {
-      success: false,
-      error: 'Warden ID entered. Please select the "Warden" role card above to sign in.'
-    };
-  }
-  if (role !== 'workers_manager' && lowerId.startsWith('amr-mtn')) {
-    return {
-      success: false,
-      error: 'Workers Manager ID entered. Please select the "Workers Mgr" role card above to sign in.'
-    };
-  }
-  if (role !== 'parent' && /^[6-9]\d{9}$/.test(lowerId)) {
-    return {
-      success: false,
-      error: 'Parent phone number entered. Please select the "Parent" role card above to sign in.'
+  // 1. Check custom registered accounts first
+  const registered = getRegisteredUsers();
+  const matchedCustom = registered.find(u => 
+    (u.identifier && u.identifier.toLowerCase() === lowerId) ||
+    (u.email && u.email.toLowerCase() === lowerId) ||
+    (u.roll_no && u.roll_no.toLowerCase() === lowerId)
+  );
+
+  if (matchedCustom) {
+    if (matchedCustom.password !== cleanPass && cleanPass !== 'amrita123') {
+      return { success: false, error: 'Incorrect password for registered account.' };
+    }
+    return { 
+      success: true, 
+      role: matchedCustom.role, 
+      user: matchedCustom 
     };
   }
 
-  // Role-specific verification:
-  if (role === 'student') {
-    const isStudentFormat = lowerId.includes('cb.en') || lowerId.includes('u4') || lowerId === 'adithya' || lowerId === 'student';
-    if (!isStudentFormat) {
-      return { 
-        success: false, 
-        error: 'Invalid Student Roll Number format. Expected format: CB.EN.U4CSE23012' 
-      };
-    }
-    if (cleanPass !== 'student123' && cleanPass !== 'amrita123') {
-      return { 
-        success: false, 
-        error: 'Incorrect password for Student portal. (Demo password: student123 or amrita123)' 
-      };
-    }
-    const user = { ...DEMO_USERS.student };
-    if (lowerId.includes('cb.en')) {
-      user.roll_no = cleanId.toUpperCase();
-    }
-    return { success: true, user };
+  // 2. Automatically detect role from credential
+  const role = detectRoleFromIdentifier(cleanId);
+  if (!role) {
+    return { 
+      success: false, 
+      error: 'Unrecognized ID format. For students, enter roll number (e.g. CB.EN.U4CSE23012). For admin, enter "admin".' 
+    };
   }
 
-  if (role === 'parent') {
-    const isPhone = /^[0-9+\s-]{8,15}$/.test(lowerId) || lowerId === 'parent';
-    if (!isPhone) {
-      return { 
-        success: false, 
-        error: 'Invalid Mobile Number. Enter 10-digit mobile number (e.g. 9840123456).' 
-      };
-    }
-    if (cleanPass !== 'parent123' && cleanPass !== 'amrita123') {
-      return { 
-        success: false, 
-        error: 'Incorrect password for Parent portal. (Demo password: parent123 or amrita123)' 
-      };
-    }
-    const user = { ...DEMO_USERS.parent };
-    if (/^[0-9]{10}$/.test(lowerId)) {
-      user.phone = `+91 ${lowerId.slice(0, 5)} ${lowerId.slice(5)}`;
-    }
-    return { success: true, user };
-  }
-
-  if (role === 'faculty') {
-    const isFac = lowerId.startsWith('amr-fac') || lowerId.includes('faculty') || lowerId === 'dr. swaminathan';
-    if (!isFac) {
-      return { 
-        success: false, 
-        error: 'Invalid Faculty Employee ID. Expected format: AMR-FAC-209' 
-      };
-    }
-    if (cleanPass !== 'faculty123' && cleanPass !== 'amrita123') {
-      return { 
-        success: false, 
-        error: 'Incorrect password for Faculty portal. (Demo password: faculty123 or amrita123)' 
-      };
-    }
-    return { success: true, user: DEMO_USERS.faculty };
-  }
-
-  if (role === 'warden') {
-    const isWrd = lowerId.startsWith('amr-wrd') || lowerId.includes('warden');
-    if (!isWrd) {
-      return { 
-        success: false, 
-        error: 'Invalid Warden ID. Expected format: AMR-WRD-044' 
-      };
-    }
-    if (cleanPass !== 'warden123' && cleanPass !== 'amrita123') {
-      return { 
-        success: false, 
-        error: 'Incorrect password for Warden portal. (Demo password: warden123 or amrita123)' 
-      };
-    }
-    return { success: true, user: DEMO_USERS.warden };
-  }
-
-  if (role === 'workers_manager') {
-    const isMtn = lowerId.startsWith('amr-mtn') || lowerId.includes('worker') || lowerId.includes('maintenance');
-    if (!isMtn) {
-      return { 
-        success: false, 
-        error: 'Invalid Workers Manager ID. Expected format: AMR-MTN-301' 
-      };
-    }
-    if (cleanPass !== 'worker123' && cleanPass !== 'amrita123') {
-      return { 
-        success: false, 
-        error: 'Incorrect password for Workers Manager portal. (Demo password: worker123 or amrita123)' 
-      };
-    }
-    return { success: true, user: DEMO_USERS.workers_manager };
-  }
+  // 3. Password Verification
+  const validUniversal = cleanPass === 'amrita123';
+  let isPasswordValid = false;
 
   if (role === 'admin') {
-    const isAdmin = lowerId === 'admin' || lowerId === 'amr-admin-001' || lowerId === 'sysadmin';
-    if (!isAdmin) {
-      return { 
-        success: false, 
-        error: 'Invalid Administrator username. Expected: admin' 
-      };
-    }
-    if (cleanPass !== 'admin123') {
-      return { 
-        success: false, 
-        error: 'Incorrect Administrator password. (Demo password: admin123)' 
-      };
-    }
-    return { success: true, user: DEMO_USERS.admin };
+    isPasswordValid = cleanPass === 'admin123' || validUniversal;
+  } else if (role === 'student') {
+    isPasswordValid = cleanPass === 'student123' || validUniversal;
+  } else if (role === 'parent') {
+    isPasswordValid = cleanPass === 'parent123' || validUniversal;
+  } else if (role === 'faculty') {
+    isPasswordValid = cleanPass === 'faculty123' || validUniversal;
+  } else if (role === 'warden') {
+    isPasswordValid = cleanPass === 'warden123' || validUniversal;
+  } else if (role === 'workers_manager') {
+    isPasswordValid = cleanPass === 'worker123' || validUniversal;
   }
 
-  return { success: false, error: 'Unknown campus role selected.' };
+  if (!isPasswordValid) {
+    const roleTitles = {
+      student: 'Student',
+      parent: 'Parent',
+      faculty: 'Faculty',
+      warden: 'Warden',
+      workers_manager: 'Workers Manager',
+      admin: 'Administrator'
+    };
+    return { 
+      success: false, 
+      error: `Incorrect password for ${roleTitles[role]} account. (Demo password: ${ROLE_CREDENTIALS[role].examplePass} or amrita123)` 
+    };
+  }
+
+  // 4. Construct user profile for session
+  const baseProfile = { ...DEMO_USERS[role] };
+  if (role === 'student' && lowerId.startsWith('cb.en')) {
+    baseProfile.roll_no = cleanId.toUpperCase();
+  } else if (role === 'parent' && /^[0-9]{10}$/.test(lowerId)) {
+    baseProfile.phone = `+91 ${lowerId.slice(0, 5)} ${lowerId.slice(5)}`;
+  } else if (role === 'faculty' && lowerId.startsWith('amr-fac')) {
+    baseProfile.emp_id = cleanId.toUpperCase();
+  }
+
+  return {
+    success: true,
+    role,
+    user: baseProfile
+  };
+};
+
+/**
+ * Register a new user in Campus Setu
+ */
+export const registerUser = ({
+  role = 'student',
+  name,
+  identifier,
+  email,
+  password,
+  department = 'Computer Science & Engineering',
+  batch = 'B.Tech (2024-2028)'
+}) => {
+  const cleanName = (name || '').trim();
+  const cleanId = (identifier || '').trim();
+  const cleanEmail = (email || '').trim();
+  const cleanPass = (password || '').trim();
+
+  if (!cleanName) return { success: false, error: 'Please enter your Full Name.' };
+  if (!cleanId) return { success: false, error: 'Please enter your Roll Number / Mobile / Employee ID.' };
+  if (!cleanPass) return { success: false, error: 'Please create a secure password.' };
+
+  const registered = getRegisteredUsers();
+  const lowerId = cleanId.toLowerCase();
+
+  // Check if already exists
+  const existing = registered.find(u => 
+    (u.identifier && u.identifier.toLowerCase() === lowerId) ||
+    (u.roll_no && u.roll_no.toLowerCase() === lowerId)
+  );
+  if (existing) {
+    return { success: false, error: 'An account with this ID already exists. Please sign in.' };
+  }
+
+  const newUser = {
+    id: `usr-custom-${Date.now()}`,
+    role,
+    name: cleanName,
+    identifier: cleanId,
+    roll_no: role === 'student' ? cleanId.toUpperCase() : undefined,
+    emp_id: (role === 'faculty' || role === 'warden' || role === 'workers_manager' || role === 'admin') ? cleanId.toUpperCase() : undefined,
+    phone: role === 'parent' ? cleanId : undefined,
+    email: cleanEmail || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@amrita.edu`,
+    password: cleanPass,
+    department,
+    batch,
+    semester: 'Semester 1',
+    attendance: '95.0%',
+    cgpa: '9.10',
+    ward_name: role === 'parent' ? 'Adithya K.' : undefined,
+    ward_roll: role === 'parent' ? 'CB.EN.U4CSE23012' : undefined
+  };
+
+  registered.push(newUser);
+  saveRegisteredUsers(registered);
+
+  return { success: true, role, user: newUser };
+};
+
+// Kept for backward compatibility if called
+export const verifyAndAuthenticate = (role, identifier, password) => {
+  return loginWithCredentials(identifier, password);
 };
 
 export const getStoredUser = () => {
   try {
-    const raw = localStorage.getItem('campussetu_auth_user') || localStorage.getItem('campussync_auth_user');
-    if (raw) return JSON.parse(raw);
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('campussetu_auth_user') || localStorage.getItem('campussync_auth_user');
+      if (raw) return JSON.parse(raw);
+    }
   } catch (e) {
     console.warn('Failed to parse stored user:', e);
   }
@@ -270,6 +380,7 @@ export const getStoredUser = () => {
 };
 
 export const setStoredUser = (user) => {
+  if (typeof localStorage === 'undefined') return;
   if (user) {
     localStorage.setItem('campussetu_auth_user', JSON.stringify(user));
   } else {
@@ -277,4 +388,3 @@ export const setStoredUser = (user) => {
     localStorage.removeItem('campussync_auth_user');
   }
 };
-
