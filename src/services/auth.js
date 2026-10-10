@@ -369,6 +369,10 @@ export const verifyAndAuthenticate = (role, identifier, password) => {
 
 export const getStoredUser = () => {
   try {
+    if (typeof sessionStorage !== 'undefined') {
+      const sess = sessionStorage.getItem('campussetu_auth_user');
+      if (sess) return JSON.parse(sess);
+    }
     if (typeof localStorage !== 'undefined') {
       const raw = localStorage.getItem('campussetu_auth_user') || localStorage.getItem('campussync_auth_user');
       if (raw) return JSON.parse(raw);
@@ -380,11 +384,19 @@ export const getStoredUser = () => {
 };
 
 export const setStoredUser = (user) => {
-  if (typeof localStorage === 'undefined') return;
-  if (user) {
-    localStorage.setItem('campussetu_auth_user', JSON.stringify(user));
-  } else {
-    localStorage.removeItem('campussetu_auth_user');
-    localStorage.removeItem('campussync_auth_user');
+  if (typeof sessionStorage !== 'undefined') {
+    if (user) {
+      sessionStorage.setItem('campussetu_auth_user', JSON.stringify(user));
+    } else {
+      sessionStorage.removeItem('campussetu_auth_user');
+    }
+  }
+  if (typeof localStorage !== 'undefined') {
+    if (user) {
+      localStorage.setItem('campussetu_auth_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('campussetu_auth_user');
+      localStorage.removeItem('campussync_auth_user');
+    }
   }
 };

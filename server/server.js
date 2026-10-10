@@ -82,6 +82,51 @@ const state = {
     }
   ],
 
+  innovation_bookings: [
+    {
+      id: 'req-101',
+      studentName: 'Akash Kumar',
+      studentRoll: 'CB.EN.U4AIE23045',
+      labId: 'lab-ai-hpc',
+      labName: 'AI & High Performance Computing Lab',
+      projectTitle: 'Autonomous Drone Obstacle Avoidance via YOLOv8',
+      projectType: 'Computer Vision & Deep Learning',
+      requirements: 'Dell Precision RTX 4090 Workstation, PyTorch 2.3, CUDA 12.4',
+      slotTime: 'Today 02:00 - 04:30 PM',
+      status: 'pending',
+      submittedAt: 'Today, 02:45 AM',
+      facultyAssigned: 'Dr. K. Swaminathan (AMR-FAC-209)'
+    },
+    {
+      id: 'req-102',
+      studentName: 'Meera R.',
+      studentRoll: 'CB.EN.U4ECE23048',
+      labId: 'lab-vlsi-embedded',
+      labName: 'VLSI, Embedded Systems & Circuit Design Lab',
+      projectTitle: 'Bio-Sensor Analog Front-End with LM741 & STM32',
+      projectType: 'Hardware / Circuit',
+      requirements: 'Bench DSO 100MHz, LM741 IC, STM32CubeIDE, Altium Designer',
+      slotTime: 'Today 03:00 - 05:00 PM',
+      status: 'approved',
+      submittedAt: 'Yesterday, 04:15 PM',
+      facultyAssigned: 'Dr. Priya M. (AMR-FAC-184)'
+    },
+    {
+      id: 'req-103',
+      studentName: 'Gowtham M.',
+      studentRoll: 'CB.EN.U4MEE23019',
+      labId: 'lab-fablab-proto',
+      labName: 'FabLab & Rapid Prototyping Workshop',
+      projectTitle: 'Lightweight Hexacopter Arm Bracket (PLA / PETG)',
+      projectType: 'Rapid Prototyping',
+      requirements: 'Prusa MK4 3D Printer, 85g PETG filament, 2.5h print run',
+      slotTime: 'Today 01:00 - 02:30 PM (Idle Gap Matched)',
+      status: 'pending',
+      submittedAt: 'Today, 01:20 AM',
+      facultyAssigned: 'Er. Rajesh V. (AMR-FAC-112)'
+    }
+  ],
+
   classrooms: [
     {
       id: 'AB1-101',
@@ -797,6 +842,45 @@ router.post('/admin/reports/:id/resolve', async (req, res) => {
     return res.json({ success: true, report: rep });
   }
   res.status(404).json({ error: 'Report not found' });
+});
+
+// -----------------------------------------------------------------------------
+// INNOVATION FACILITY BOOKINGS (Synchronizes Student Requests & Faculty Approvals)
+// -----------------------------------------------------------------------------
+router.get('/innovation/bookings', (req, res) => {
+  res.json({
+    success: true,
+    bookings: state.innovation_bookings || []
+  });
+});
+
+router.post('/innovation/bookings', (req, res) => {
+  const newBooking = req.body;
+  if (!newBooking || !newBooking.labId) {
+    return res.status(400).json({ error: 'Missing booking details' });
+  }
+  const booking = {
+    id: newBooking.id || `req-${Date.now()}`,
+    status: 'pending',
+    submittedAt: 'Just now',
+    ...newBooking
+  };
+  state.innovation_bookings = [booking, ...(state.innovation_bookings || [])];
+  res.json({ success: true, booking });
+});
+
+router.patch('/innovation/bookings/:id', (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  const idx = (state.innovation_bookings || []).findIndex(b => b.id === id);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'Booking not found' });
+  }
+  state.innovation_bookings[idx] = {
+    ...state.innovation_bookings[idx],
+    status: status || state.innovation_bookings[idx].status
+  };
+  res.json({ success: true, booking: state.innovation_bookings[idx] });
 });
 
 // -----------------------------------------------------------------------------
