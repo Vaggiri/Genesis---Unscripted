@@ -73,7 +73,7 @@ const state = {
     },
     {
       slug: 'admin-portal',
-      title: 'CampusSync Administrative Console',
+      title: 'Campus Setu Administrative Console',
       subtitle: 'Zero-hardcode dynamic page configuration, timetable management, and report moderation',
       badge: 'Admin Console',
       icon_name: 'Sliders',
@@ -807,7 +807,7 @@ app.use('/', router);
 const isDirectExecution = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isDirectExecution || (!process.env.VERCEL && process.env.NODE_ENV !== 'production')) {
   app.listen(PORT, () => {
-    console.log(`🚀 CampusSync Node.js Backend Server running on http://localhost:${PORT}`);
+    console.log(`🚀 Campus Setu Node.js Backend Server running on http://localhost:${PORT}`);
   });
 }
 

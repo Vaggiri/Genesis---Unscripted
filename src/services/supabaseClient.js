@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Retrieve credentials from localStorage or environment variables
 export const getSupabaseConfig = () => {
-  const localUrl = localStorage.getItem('campussync_supabase_url');
-  const localKey = localStorage.getItem('campussync_supabase_key');
+  const localUrl = localStorage.getItem('campussetu_supabase_url') || localStorage.getItem('campussync_supabase_url');
+  const localKey = localStorage.getItem('campussetu_supabase_key') || localStorage.getItem('campussync_supabase_key');
 
   const url = localUrl || import.meta.env.VITE_SUPABASE_URL || '';
   const key = localKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -13,9 +13,11 @@ export const getSupabaseConfig = () => {
 
 export const saveSupabaseConfig = (url, key) => {
   if (url && key) {
-    localStorage.setItem('campussync_supabase_url', url.trim());
-    localStorage.setItem('campussync_supabase_key', key.trim());
+    localStorage.setItem('campussetu_supabase_url', url.trim());
+    localStorage.setItem('campussetu_supabase_key', key.trim());
   } else {
+    localStorage.removeItem('campussetu_supabase_url');
+    localStorage.removeItem('campussetu_supabase_key');
     localStorage.removeItem('campussync_supabase_url');
     localStorage.removeItem('campussync_supabase_key');
   }

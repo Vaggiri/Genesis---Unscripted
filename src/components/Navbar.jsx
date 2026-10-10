@@ -59,7 +59,7 @@ export default function Navbar({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                Campus<span style={{ color: 'var(--amrita-maroon)' }}>Sync</span>
+                Campus <span style={{ color: 'var(--amrita-maroon)' }}>Setu</span>
               </span>
               <span className="badge badge-maroon" style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>
                 Portal

@@ -1,5 +1,5 @@
 -- =========================================================================
--- CampusSync - Unified Campus E-Governance & Space Radar
+-- Campus Setu - Unified Campus E-Governance & Space Radar
 -- Amrita Vishwa Vidyapeetham — Coimbatore Campus
 -- Target: Supabase Cloud SQL Editor (PostgreSQL with RLS & Realtime)
 -- =========================================================================
@@ -177,4 +177,4 @@ VALUES
 ('classroom-occupancy', 'Classroom & Lab Occupancy', 'Real-time timetable index, room vacancies, and crowdsourced reporting', 'Live Matrix', 'Compass', true, 1),
 ('parent-epass', 'Parent Hostel Visit & Gate E-Pass', 'Digital pre-clearance, 1-click warden approvals & dynamic QR fast lane', 'E-Governance', 'ShieldCheck', true, 2),
 ('fablab-desk', 'FabLab Service Request Desk', 'Conversational AI triage for 3D printing and PCB fabrication work orders', 'Makerspace', 'Cpu', true, 3),
-('admin-portal', 'CampusSync Admin Desk', 'Dynamic configuration, timetable overrides, and crowd report moderation', 'Admin Only', 'Sliders', true, 4);
+('admin-portal', 'Campus Setu Admin Desk', 'Dynamic configuration, timetable overrides, and crowd report moderation', 'Admin Only', 'Sliders', true, 4);

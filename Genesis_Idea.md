@@ -1,4 +1,4 @@
-# CampusSync: Unified Campus E-Governance & Intelligent Service Request System
+# Campus Setu: Unified Campus E-Governance & Intelligent Service Request System
 
 **Hackathon / Ideathon:** GENESIS 2026 — Amrita Vishwa Vidyapeetham  
 **Selected Track:** **Problem Statement #9 — Unified Campus E-Governance and Service Request Portal**  
@@ -10,7 +10,7 @@
 
 Residential and technological universities like Amrita operate as vibrant micro-cities with thousands of students, faculty, visiting parents, and multi-facility research infrastructure. Despite possessing modern labs and digitized student records, critical day-to-day administrative governance and resource service requests remain fragmented, manual, and paper-dependent.
 
-**CampusSync** unites three critical operational workflows under one cohesive, paperless digital governance ecosystem:
+**Campus Setu** unites three critical operational workflows under one cohesive, paperless digital governance ecosystem:
 1. **Administrative E-Governance:** A verified **Parent Hostel Visit & Gate E-Pass** system replacing manual paper slips with dynamic, secure QR tokens.
 2. **Technical Service Requests:** An **AI-Powered FabLab Prototyping Intake Desk** that automatically interviews students for technical specs (3D printing, PCB fabrication) and routes work orders to lab technicians.
 3. **Campus Resource Allocation:** A **Live Classroom Occupancy & Study Space Locator** that indexes block timetables to instantly highlight available rooms for project teams.
@@ -56,7 +56,7 @@ flowchart TD
         T[FabLab Technicians]
     end
 
-    subgraph Platform ["CampusSync: Unified Portal (PS #9)"]
+    subgraph Platform ["Campus Setu: Unified Portal (PS #9)"]
         subgraph Mod1 ["Pillar 1: E-Governance"]
             EP[Parent E-Pass Engine]
             QR[Dynamic QR Generator]

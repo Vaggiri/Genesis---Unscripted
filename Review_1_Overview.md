@@ -1,4 +1,4 @@
-# CampusSync — Review 1: Research & Problem Statement Understanding
+# Campus Setu — Review 1: Research & Problem Statement Understanding
 **GENESIS 2026 Hackathon | Amrita Vishwa Vidyapeetham**  
 **Selected Track:** Problem Statement #9 — Unified Campus E-Governance and Service Request Portal  
 **Evaluation Window:** Review 1 (8:00 PM – 11:00 PM, 10th October 2026)  
@@ -8,7 +8,7 @@
 ## 📋 Executive Overview for Judges
 
 > **The Elevator Pitch:**  
-> *"Amrita operates as a 10,000+ member residential micro-city. While academic grading is digitized, high-frequency operational governance is still stranded on paper slips, unstructured emails, and corridor guesswork. **CampusSync** is an intelligent, unified campus governance ecosystem tackling three high-friction campus workflows: verified **Parent Hostel Visit & Gate E-Passes**, an **AI-Powered FabLab Prototyping Intake Desk**, and a **Live Classroom & Study Space Locator**."*
+> *"Amrita operates as a 10,000+ member residential micro-city. While academic grading is digitized, high-frequency operational governance is still stranded on paper slips, unstructured emails, and corridor guesswork. **Campus Setu** is an intelligent, unified campus governance ecosystem tackling three high-friction campus workflows: verified **Parent Hostel Visit & Gate E-Passes**, an **AI-Powered FabLab Prototyping Intake Desk**, and a **Live Classroom & Study Space Locator**."*
 
 ---
 
@@ -33,7 +33,7 @@ There is zero unified bridge connecting Gate Security, Hostel Administration, Te
 and Student Innovators."
 
 [1:15 - 2:15]  OUR SOLUTION: CAMPUSSYNC (3 CORE PILLARS)
-"CampusSync solves this via three synchronized modules:
+"Campus Setu solves this via three synchronized modules:
  1. Administrative E-Governance: A verified Parent Hostel Visit & Gate E-Pass with dynamic, 
     time-stamped QR verification for gatekeepers and 1-click warden approvals.
  2. Intelligent Service Desk: An AI-Powered FabLab Intake Agent that acts as a virtual lab 
@@ -72,7 +72,7 @@ with a live, testable end-to-end prototype."
 +---------------------------------------------------------------------------------+
 |                                 THE GAP IN CAMPUS TECH                          |
 +---------------------------------------------------------------------------------+
-| AUMS / Traditional Campus ERP          | CampusSync (PS #9 Unified Solution)   |
+| AUMS / Traditional Campus ERP          | Campus Setu (PS #9 Unified Solution)   |
 +----------------------------------------+----------------------------------------+
 | Built for static, scheduled records   | Built for real-time, dynamic workflows |
 | (Grades, Tuition fees, Attendance)     | (Gate scans, AI lab triage, room query)|
@@ -90,7 +90,7 @@ with a live, testable end-to-end prototype."
 
 ---
 
-## 3. 🎯 Deep Dive: CampusSync’s 3 Pillars
+## 3. 🎯 Deep Dive: Campus Setu’s 3 Pillars
 
 ```mermaid
 flowchart LR
@@ -136,17 +136,17 @@ flowchart LR
 ### Persona A: Smt. Lakshmi (Parent visiting from Chennai)
 * **Goal:** Visit son at D-Block Hostel for 3 hours, hand over items, and exit before 6:00 PM.
 * **Pain Points:** Dislikes paperwork, hates standing in lines under the sun, nervous about gate procedures.
-* **CampusSync Journey:** Fills a 3-field form on her phone $\rightarrow$ receives dynamic QR pass $\rightarrow$ guard scans at gate in 3 seconds $\rightarrow$ gate opens seamlessly.
+* **Campus Setu Journey:** Fills a 3-field form on her phone $\rightarrow$ receives dynamic QR pass $\rightarrow$ guard scans at gate in 3 seconds $\rightarrow$ gate opens seamlessly.
 
 ### Persona B: Adithya (3rd Year B.Tech Robotics Lead)
 * **Goal:** Rapidly 3D-print a custom drone motor mount for a national competition before Monday.
 * **Pain Points:** FabLab technician rejected his previous raw STL file because shell wall thickness and infill were not documented; lost 4 days.
-* **CampusSync Journey:** Chats with CampusSync AI intake $\rightarrow$ AI prompts him for infill percentage and nozzle tolerance $\rightarrow$ ticket verified and placed on the lab's priority print queue.
+* **Campus Setu Journey:** Chats with Campus Setu AI intake $\rightarrow$ AI prompts him for infill percentage and nozzle tolerance $\rightarrow$ ticket verified and placed on the lab's priority print queue.
 
 ### Persona C: Havildar Murugesan (Main Gate Security Officer)
 * **Goal:** Verify incoming vehicles quickly without causing backups on the Coimbatore-Palakkad highway.
 * **Pain Points:** Handwriting in paper registers is illegible; cannot confirm if a student is actually permitted to leave hostel with parents.
-* **CampusSync Journey:** Point tablet camera at QR code $\rightarrow$ green "VALIDATED" flash with student photo and vehicle registration $\rightarrow$ clicks "Log Entry".
+* **Campus Setu Journey:** Point tablet camera at QR code $\rightarrow$ green "VALIDATED" flash with student photo and vehicle registration $\rightarrow$ clicks "Log Entry".
 
 ---
 
@@ -184,7 +184,7 @@ Aligned strictly with the **GENESIS '26 Tentative Agenda**:
 
 ### Q1: *"Why are you bundling three different things (Parent Pass, FabLab, Classrooms) into one project?"*
 > **Defense:**  
-> *"That is the exact core definition of **Problem Statement #9: Unified Campus E-Governance & Service Request Portal**. A university is not just an academic portal—it is an ecosystem. Currently, each of these needs is handled by separate fractured tools (paper for gate, emails for labs, physical scouting for rooms). CampusSync proves that a **single unified identity and permissions layer** can power administrative security, research service requests, and physical infrastructure utilization under one single sign-on."*
+> *"That is the exact core definition of **Problem Statement #9: Unified Campus E-Governance & Service Request Portal**. A university is not just an academic portal—it is an ecosystem. Currently, each of these needs is handled by separate fractured tools (paper for gate, emails for labs, physical scouting for rooms). Campus Setu proves that a **single unified identity and permissions layer** can power administrative security, research service requests, and physical infrastructure utilization under one single sign-on."*
 
 ### Q2: *"Can't parents just use Google Forms and WhatsApp?"*
 > **Defense:**  

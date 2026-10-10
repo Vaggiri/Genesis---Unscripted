@@ -99,7 +99,7 @@ export const api = {
         },
         {
           slug: 'admin-portal',
-          title: 'CampusSync Administrative Console',
+          title: 'Campus Setu Administrative Console',
           subtitle: 'Zero-hardcode dynamic page configuration, timetable management, and report moderation',
           badge: 'Admin Console',
           icon_name: 'Sliders',

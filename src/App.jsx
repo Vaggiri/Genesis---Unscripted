@@ -13,7 +13,7 @@ import { api } from './services/api';
 
 export default function App() {
   // If stored user exists in localStorage, initialize with it; default to null (shows Login Page)
-  const [currentUser, setCurrentUser] = useState(() => getStoredUser() || DEMO_USERS.student);
+  const [currentUser, setCurrentUser] = useState(() => getStoredUser() || null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
 
   const [simulatedContext, setSimulatedContext] = useState({
@@ -141,7 +141,7 @@ export default function App() {
           </div>
 
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            GENESIS 2026 • CampusSync
+            GENESIS 2026 • Campus Setu
           </div>
         </div>
       </footer>
