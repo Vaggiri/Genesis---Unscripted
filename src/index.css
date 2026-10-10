@@ -346,3 +346,100 @@ button, input, select, textarea {
   border-color: var(--amrita-maroon);
   box-shadow: 0 0 0 3px rgba(164, 18, 63, 0.15);
 }
+
+/* Official Amrita Portal Angled Ribbon Tile Grid System */
+.amrita-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem 1.15rem;
+  margin-bottom: 1.5rem;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .amrita-tile-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.85rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .amrita-tile-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem 0.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .amrita-tile-grid {
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+  }
+}
+
+.amrita-ribbon-tile {
+  background-color: #ffffff;
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  position: relative;
+  text-decoration: none;
+  width: 100%;
+  padding: 0;
+}
+
+.amrita-ribbon-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px rgba(164, 18, 63, 0.12);
+  border-color: rgba(164, 18, 63, 0.3);
+}
+
+.amrita-ribbon-tile.active {
+  border: 2px solid var(--amrita-maroon);
+  box-shadow: 0 4px 14px rgba(164, 18, 63, 0.18);
+  background-color: #fff9fa;
+}
+
+.amrita-ribbon-tile-label {
+  flex: 1;
+  font-size: 0.775rem;
+  font-weight: 700;
+  color: var(--amrita-maroon);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0 0.5rem 0 0.75rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amrita-ribbon-tile-ribbon {
+  width: 58px;
+  height: 100%;
+  background-color: var(--amrita-maroon);
+  clip-path: polygon(20px 0%, 100% 0%, 100% 100%, 0% 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 10px;
+  color: #ffffff;
+  flex-shrink: 0;
+  transition: background-color 0.18s ease;
+}
+
+.amrita-ribbon-tile:hover .amrita-ribbon-tile-ribbon {
+  background-color: var(--amrita-maroon-dark);
+}
+
+.amrita-ribbon-tile.active .amrita-ribbon-tile-ribbon {
+  background-color: var(--amrita-maroon-dark);
+}
+

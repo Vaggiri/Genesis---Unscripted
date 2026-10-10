@@ -86,40 +86,26 @@ export default function FacultyPortal({ user }) {
         </div>
       </div>
 
-      {/* Tabs Pill Bar */}
-      <div style={{
-        display: 'flex',
-        gap: '0.4rem',
-        overflowX: 'auto',
-        paddingBottom: '0.5rem',
-        marginBottom: '1.25rem',
-        borderBottom: '1px solid var(--border-light)'
-      }}>
+      {/* Amrita Ribbon Tile Grid (No horizontal scrolling) */}
+      <div className="amrita-tile-grid" style={{ marginBottom: '1.25rem' }}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.5rem 0.85rem',
-                minHeight: '38px',
-                borderRadius: 'var(--radius-full)',
-                border: isActive ? '1px solid var(--amrita-maroon)' : '1px solid var(--border-light)',
-                backgroundColor: isActive ? 'var(--amrita-maroon)' : '#ffffff',
-                color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.775rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
+              className={`amrita-ribbon-tile ${isActive ? 'active' : ''}`}
+              title={`Open ${tab.label}`}
+              style={{ outline: 'none' }}
             >
-              <Icon size={14} />
-              <span>{tab.label}</span>
+              <span className="amrita-ribbon-tile-label">
+                {tab.label}
+              </span>
+              <div className="amrita-ribbon-tile-ribbon">
+                <Icon size={16} color="#ffffff" strokeWidth={2.2} />
+              </div>
             </button>
           );
         })}

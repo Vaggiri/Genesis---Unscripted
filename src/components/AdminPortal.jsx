@@ -222,46 +222,32 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
         )}
       </div>
 
-      {/* Tabs */}
-      <div style={{
-        display: 'flex',
-        gap: '0.35rem',
-        overflowX: 'auto',
-        borderBottom: '2px solid var(--border-light)',
-        marginBottom: '1.25rem',
-        paddingBottom: '2px'
-      }}>
+      {/* Amrita Ribbon Tile Grid (No horizontal scrolling) */}
+      <div className="amrita-tile-grid" style={{ marginBottom: '1.25rem' }}>
         {[
-          { id: 'cms', label: 'Dynamic Pages', icon: Layers },
+          { id: 'cms', label: 'Dynamic CMS Pages', icon: Layers },
           { id: 'classrooms', label: `Classrooms (${classrooms.length})`, icon: Building },
           { id: 'timetables', label: `Timetables (${timetables.length})`, icon: Calendar },
           { id: 'reports', label: `Crowd Reports (${reports.length})`, icon: Flag },
-          { id: 'settings', label: 'Portal Config', icon: Sliders }
+          { id: 'settings', label: 'Portal Configuration', icon: Sliders }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.65rem 0.85rem',
-                minHeight: '40px',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: isActive ? '3px solid var(--amrita-maroon)' : '3px solid transparent',
-                color: isActive ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.825rem',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
+              className={`amrita-ribbon-tile ${isActive ? 'active' : ''}`}
+              title={`Open ${tab.label}`}
+              style={{ outline: 'none' }}
             >
-              <Icon size={15} />
-              <span>{tab.label}</span>
+              <span className="amrita-ribbon-tile-label">
+                {tab.label}
+              </span>
+              <div className="amrita-ribbon-tile-ribbon">
+                <Icon size={16} color="#ffffff" strokeWidth={2.2} />
+              </div>
             </button>
           );
         })}
