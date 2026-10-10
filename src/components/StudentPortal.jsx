@@ -1,46 +1,47 @@
 import React, { useState } from 'react';
-import {
+import { 
   Bot,
-  Building2,
-  Cpu,
-  Calendar,
-  CheckCircle2,
-  User,
-  Settings,
-  Clock,
-  Sparkles,
+  Building2, 
+  Cpu, 
+  Calendar, 
+  CheckCircle2, 
+  User, 
+  Settings, 
+  Clock, 
+  Sparkles, 
   Search,
   BookOpen,
   GraduationCap,
   Layers,
   Check,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import SmartLabFinderBot from './SmartLabFinderBot';
 import LabDirectoryView from './LabDirectoryView';
 import ClassroomOccupancyModule from './ClassroomOccupancyModule';
 
-export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking }) {
+export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking, onLogout }) {
   // Main Navigation Tabs
   const [activeTab, setActiveTab] = useState('ai_bot'); // 'ai_bot' | 'directory' | 'my_bookings' | 'classrooms' | 'profile'
 
   const myBookings = bookings.filter(b => b.studentRoll === user?.roll_no);
 
   const navTabs = [
-    { id: 'ai_bot', label: 'AI Matcher', icon: Bot, isHighlight: true },
-    { id: 'directory', label: 'Labs & Stock', icon: Building2 },
-    { id: 'my_bookings', label: `My Requests (${myBookings.length})`, icon: Clock },
-    { id: 'classrooms', label: 'Space Radar', icon: Calendar },
-    { id: 'profile', label: 'Profile & Settings', icon: User }
+    { id: 'ai_bot', label: 'AI Lab Matcher', shortLabel: 'AI Match', icon: Sparkles },
+    { id: 'directory', label: 'Labs & Stock', shortLabel: 'Labs', icon: Building2 },
+    { id: 'my_bookings', label: 'My Requests', shortLabel: 'Requests', icon: Clock, count: myBookings.length },
+    { id: 'classrooms', label: 'Space Radar', shortLabel: 'Radar', icon: Calendar },
+    { id: 'profile', label: 'Profile & Settings', shortLabel: 'Profile', icon: User }
   ];
 
   return (
-    <div style={{ padding: '1.25rem 0 3.5rem' }}>
+    <div style={{ padding: '1rem 0 3.5rem' }}>
 
       {/* Student Profile Overview Card */}
       <div className="card-amrita" style={{
-        padding: '1.25rem',
-        marginBottom: '1.25rem',
+        padding: '1rem 1.25rem',
+        marginBottom: '1rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -49,8 +50,8 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
           <div style={{
-            width: '46px',
-            height: '46px',
+            width: '44px',
+            height: '44px',
             borderRadius: '12px',
             backgroundColor: 'var(--amrita-maroon)',
             color: '#ffffff',
@@ -58,13 +59,15 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
             alignItems: 'center',
             justifyContent: 'center',
             fontWeight: 800,
-            fontSize: '1.15rem'
+            fontSize: '1.1rem',
+            boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)',
+            flexShrink: 0
           }}>
             AK
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 {user?.name || 'Adithya K.'}
               </h2>
               <span className="badge badge-maroon" style={{ fontSize: '0.675rem' }}>
@@ -72,26 +75,42 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
               </span>
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              Roll No: <strong>{user?.roll_no || 'CB.EN.U4CSE23012'}</strong> • {user?.department || 'Computer Science & Engineering'} • {user?.batch || 'B.Tech CSE-B'}
+              Roll No: <strong>{user?.roll_no || 'CB.EN.U4AIE23045'}</strong> • {user?.department || 'Computer Science & Engineering'}
             </div>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.8rem' }}>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Active Project Slots:</span>{' '}
-            <strong style={{ color: 'var(--amrita-maroon)' }}>{myBookings.length} Booked</strong>
+        {/* Quick Stats & Log Out */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem' }}>
+          <div className="hide-mobile">
+            <span style={{ color: 'var(--text-muted)' }}>Project Slots:</span>{' '}
+            <strong style={{ color: 'var(--amrita-maroon)' }}>{myBookings.length} Active</strong>
           </div>
-          <div>
-            <span style={{ color: 'var(--text-muted)' }}>Classroom Access:</span>{' '}
-            <span style={{ color: 'var(--status-available)', fontWeight: 700 }}>Occupancy Radar (View Only)</span>
-          </div>
+          <button
+            onClick={onLogout}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '8px',
+              border: '1px solid #fee2e2',
+              backgroundColor: '#fff5f5',
+              color: '#b91c1c',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer'
+            }}
+            title="Log Out of Session"
+          >
+            <LogOut size={13} />
+            <span>Log Out</span>
+          </button>
         </div>
       </div>
 
-      {/* Navigation Ribbons Grid (Amrita Theme, No horizontal scrolling, Desktop only now) */}
-      <div className="amrita-tile-grid" style={{ marginBottom: '1.25rem' }}>
+      {/* Modern Desktop Segmented Tab Navigation Bar */}
+      <nav className="nav-segmented-bar" aria-label="Portal Navigation">
         {navTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -100,22 +119,17 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`amrita-ribbon-tile ${isActive ? 'active' : ''}`}
-              style={{
-                outline: 'none',
-                backgroundColor: isActive ? '#fff9fa' : tab.isHighlight ? '#fef2f4' : '#ffffff'
-              }}
+              className={`nav-segment-item ${isActive ? 'active' : ''}`}
             >
-              <span className="amrita-ribbon-tile-label" style={{ fontWeight: tab.isHighlight ? 800 : 700 }}>
-                {tab.label}
-              </span>
-              <div className="amrita-ribbon-tile-ribbon" style={{ backgroundColor: tab.isHighlight ? 'var(--amrita-maroon-dark)' : 'var(--amrita-maroon)' }}>
-                <Icon size={16} color="#ffffff" strokeWidth={2.2} />
-              </div>
+              <Icon size={16} />
+              <span>{tab.label}</span>
+              {typeof tab.count === 'number' && (
+                <span className="nav-counter-pill">{tab.count}</span>
+              )}
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Active Tab Container */}
       <div>
@@ -307,29 +321,64 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
                 </label>
               </div>
             </div>
+
+            {/* Session Security Card with Explicit Log Out Button */}
+            <div className="card-amrita" style={{ padding: '1.25rem 1.5rem', maxWidth: '640px', borderLeft: '4px solid #ef4444' }}>
+              <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#991b1b', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <LogOut size={16} /> Session Security
+              </h4>
+              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
+                Currently logged in as student <strong>{user?.name}</strong> ({user?.roll_no}). Log out when working on public or lab workstations.
+              </p>
+              <button
+                type="button"
+                onClick={onLogout}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '0.55rem 1.25rem',
+                  backgroundColor: '#fee2e2',
+                  color: '#991b1b',
+                  border: '1px solid #fecaca',
+                  borderRadius: '8px',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.15s ease'
+                }}
+              >
+                <LogOut size={15} />
+                <span>Log Out of Session</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="mobile-bottom-nav">
+      {/* Native Mobile Bottom Navigation */}
+      <nav className="mobile-bottom-nav" aria-label="Mobile Bottom Navigation">
         {navTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id)}
               className={`mobile-nav-item ${isActive ? 'active' : ''}`}
             >
-              <Icon size={20} />
-              <span style={{ fontSize: '11px', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                {tab.id === 'my_bookings' ? 'Requests' : tab.label.split(' ')[0]}
-              </span>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Icon size={20} />
+                {typeof tab.count === 'number' && tab.count > 0 && (
+                  <span className="mobile-badge">{tab.count}</span>
+                )}
+              </div>
+              <span>{tab.shortLabel}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
     </div>
   );

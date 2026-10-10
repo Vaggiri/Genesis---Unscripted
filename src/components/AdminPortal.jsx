@@ -222,8 +222,8 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
         )}
       </div>
 
-      {/* Amrita Ribbon Tile Grid (No horizontal scrolling) */}
-      <div className="amrita-tile-grid" style={{ marginBottom: '1.25rem' }}>
+      {/* Modern Desktop Segmented Navigation Bar */}
+      <nav className="nav-segmented-bar" aria-label="Admin Navigation">
         {[
           { id: 'cms', label: 'Dynamic CMS Pages', icon: Layers },
           { id: 'classrooms', label: `Classrooms (${classrooms.length})`, icon: Building },
@@ -238,20 +238,14 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
               key={tab.id}
               type="button"
               onClick={() => setActiveTab(tab.id)}
-              className={`amrita-ribbon-tile ${isActive ? 'active' : ''}`}
-              title={`Open ${tab.label}`}
-              style={{ outline: 'none' }}
+              className={`nav-segment-item ${isActive ? 'active' : ''}`}
             >
-              <span className="amrita-ribbon-tile-label">
-                {tab.label}
-              </span>
-              <div className="amrita-ribbon-tile-ribbon">
-                <Icon size={16} color="#ffffff" strokeWidth={2.2} />
-              </div>
+              <Icon size={16} />
+              <span>{tab.label}</span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* TAB 1: DYNAMIC CMS PAGE EDITOR */}
       {activeTab === 'cms' && (

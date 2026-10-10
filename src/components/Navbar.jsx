@@ -147,19 +147,20 @@ export default function Navbar({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.35rem',
-                  padding: '0.4rem 0.65rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-light)',
-                  backgroundColor: '#ffffff',
-                  color: 'var(--text-secondary)',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '8px',
+                  border: '1px solid #fee2e2',
+                  backgroundColor: '#fff5f5',
+                  color: '#b91c1c',
                   fontSize: '0.775rem',
-                  fontWeight: 600,
-                  cursor: 'pointer'
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
                 }}
-                title="Log Out"
+                title="Log Out of Session"
               >
-                <LogOut size={14} />
-                <span className="hide-mobile">Log Out</span>
+                <LogOut size={14} color="#b91c1c" />
+                <span>Log Out</span>
               </button>
             </div>
           ) : (

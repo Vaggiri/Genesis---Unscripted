@@ -257,6 +257,7 @@ export default function App() {
                   simulatedContext={simulatedContext}
                   bookings={bookings}
                   onNewBooking={handleNewBooking}
+                  onLogout={handleLogout}
                 />
               )}
 
@@ -268,6 +269,7 @@ export default function App() {
                   onApprove={handleApproveBooking}
                   onReject={handleRejectBooking}
                   onNewBooking={handleNewBooking}
+                  onLogout={handleLogout}
                 />
               )}
 

@@ -247,11 +247,18 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
         </div>
 
         {/* Quick Sample Queries */}
-        <div style={{ marginBottom: '1rem' }}>
+        <div style={{ marginBottom: '0.85rem' }}>
           <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem', textTransform: 'uppercase' }}>
-            💡 Try a project prompt (Click to test):
+            💡 Quick Prompts (Click to Ask AI):
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            overflowX: 'auto', 
+            flexWrap: 'nowrap', 
+            gap: '0.45rem', 
+            paddingBottom: '4px',
+            WebkitOverflowScrolling: 'touch'
+          }}>
             {quickPrompts.map((p, idx) => (
               <button
                 key={idx}
@@ -259,15 +266,17 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
                 onClick={() => handleSendMessage(p.query)}
                 disabled={isAnalyzing}
                 style={{
-                  padding: '0.35rem 0.65rem',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--border-light)',
-                  backgroundColor: 'var(--bg-surface-alt)',
-                  fontSize: '0.74rem',
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: '999px',
+                  border: '1px solid #fecdd6',
+                  backgroundColor: '#fff5f7',
+                  fontSize: '0.75rem',
                   fontWeight: 600,
                   color: 'var(--amrita-maroon)',
                   cursor: 'pointer',
-                  transition: 'var(--transition)'
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  transition: 'all 0.15s ease'
                 }}
               >
                 {p.title}
