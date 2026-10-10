@@ -19,7 +19,11 @@ import { api } from '../services/api';
 import RoomTimetableModal from './RoomTimetableModal';
 import ReportRoomModal from './ReportRoomModal';
 
-export default function ClassroomOccupancyModule({ simulatedContext }) {
+export default function ClassroomOccupancyModule({ simulatedContext, user }) {
+  const isFaculty = user?.role === 'faculty';
+  const [bookedRooms, setBookedRooms] = useState({}); // { [roomId]: { facultyName, purpose, time } }
+  const [bookingRoomModal, setBookingRoomModal] = useState(null);
+  const [facultyPurpose, setFacultyPurpose] = useState('');
   const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -382,11 +386,11 @@ export default function ClassroomOccupancyModule({ simulatedContext }) {
                 </div>
 
                 {/* Card Action Buttons (Touch friendly) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isFaculty ? '1fr 1fr 1fr' : '1fr 1fr', gap: '0.4rem', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem' }}>
                   <button
                     onClick={() => setTimetableModalRoom(room)}
                     className="btn-secondary"
-                    style={{ minHeight: '38px', padding: '0.4rem', fontSize: '0.775rem' }}
+                    style={{ minHeight: '36px', padding: '0.35rem', fontSize: '0.75rem' }}
                   >
                     <Calendar size={13} />
                     <span>Timetable</span>
@@ -398,13 +402,13 @@ export default function ClassroomOccupancyModule({ simulatedContext }) {
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '0.35rem',
-                      minHeight: '38px',
+                      gap: '0.3rem',
+                      minHeight: '36px',
                       backgroundColor: 'var(--amrita-maroon-bg)',
                       color: 'var(--amrita-maroon)',
                       border: '1px solid var(--amrita-maroon-border)',
                       borderRadius: 'var(--radius-md)',
-                      fontSize: '0.775rem',
+                      fontSize: '0.75rem',
                       fontWeight: 700,
                       cursor: 'pointer'
                     }}
@@ -412,11 +416,93 @@ export default function ClassroomOccupancyModule({ simulatedContext }) {
                     <Flag size={13} />
                     <span>Report</span>
                   </button>
+
+                  {/* Faculty Exclusive Classroom Booking Feature */}
+                  {isFaculty && (
+                    <button
+                      onClick={() => setBookingRoomModal(room)}
+                      disabled={bookedRooms[room.id] || room.status === 'occupied'}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.3rem',
+                        minHeight: '36px',
+                        backgroundColor: bookedRooms[room.id] ? '#f1f5f9' : 'var(--amrita-maroon)',
+                        color: bookedRooms[room.id] ? 'var(--text-muted)' : '#ffffff',
+                        border: 'none',
+                        borderRadius: 'var(--radius-md)',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: bookedRooms[room.id] ? 'default' : 'pointer'
+                      }}
+                    >
+                      <span>{bookedRooms[room.id] ? 'Reserved' : 'Book Room'}</span>
+                    </button>
+                  )}
                 </div>
 
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Faculty Room Reservation Modal */}
+      {bookingRoomModal && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ padding: '1.5rem', maxWidth: '460px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
+              Faculty Classroom Reservation
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Reserving <strong>Room {bookingRoomModal.room_number}</strong> ({bookingRoomModal.block}, {bookingRoomModal.floor})
+            </p>
+
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                Academic Purpose / Session Name:
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Remedial Session, Hackathon Mentoring, Project Review"
+                value={facultyPurpose}
+                onChange={(e) => setFacultyPurpose(e.target.value)}
+                className="form-input"
+                style={{ fontSize: '0.85rem' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={() => setBookingRoomModal(null)}
+                className="btn-secondary"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBookedRooms(prev => ({
+                    ...prev,
+                    [bookingRoomModal.id]: {
+                      facultyName: user?.name || 'Faculty Member',
+                      purpose: facultyPurpose || 'Special Academic Session',
+                      time: 'Reserved for Current Session'
+                    }
+                  }));
+                  setBookingRoomModal(null);
+                  setFacultyPurpose('');
+                }}
+                className="btn-amrita"
+                style={{ fontSize: '0.8rem' }}
+              >
+                Confirm Classroom Booking
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

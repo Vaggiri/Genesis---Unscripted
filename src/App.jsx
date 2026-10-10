@@ -2,19 +2,44 @@ import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import LoginPage from './components/LoginPage';
 import StudentPortal from './components/StudentPortal';
-import ParentPortal from './components/ParentPortal';
 import FacultyPortal from './components/FacultyPortal';
-import WardenPortal from './components/WardenPortal';
-import WorkersManagerPortal from './components/WorkersManagerPortal';
 import AdminPortal from './components/AdminPortal';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
-import { getStoredUser, setStoredUser, DEMO_USERS } from './services/auth';
+import { getStoredUser, setStoredUser } from './services/auth';
+import { getStoredBookings, saveStoredBookings } from './services/labsData';
 import { api } from './services/api';
 
 export default function App() {
   // If stored user exists in localStorage, initialize with it; default to null (shows Login Page)
   const [currentUser, setCurrentUser] = useState(() => getStoredUser() || null);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+
+  // Global Centralized Booking Requests State (persisted)
+  const [bookings, setBookings] = useState(() => getStoredBookings());
+
+  const handleNewBooking = (newBooking) => {
+    setBookings(prev => {
+      const updated = [newBooking, ...prev];
+      saveStoredBookings(updated);
+      return updated;
+    });
+  };
+
+  const handleApproveBooking = (bookingId) => {
+    setBookings(prev => {
+      const updated = prev.map(b => b.id === bookingId ? { ...b, status: 'approved' } : b);
+      saveStoredBookings(updated);
+      return updated;
+    });
+  };
+
+  const handleRejectBooking = (bookingId) => {
+    setBookings(prev => {
+      const updated = prev.map(b => b.id === bookingId ? { ...b, status: 'rejected' } : b);
+      saveStoredBookings(updated);
+      return updated;
+    });
+  };
 
   const [simulatedContext, setSimulatedContext] = useState({
     day: 'Monday',
@@ -77,31 +102,20 @@ export default function App() {
               {currentUser.role === 'student' && (
                 <StudentPortal 
                   user={currentUser} 
-                  simulatedContext={simulatedContext} 
-                />
-              )}
-
-              {currentUser.role === 'parent' && (
-                <ParentPortal 
-                  user={currentUser} 
+                  simulatedContext={simulatedContext}
+                  bookings={bookings}
+                  onNewBooking={handleNewBooking}
                 />
               )}
 
               {currentUser.role === 'faculty' && (
                 <FacultyPortal 
                   user={currentUser} 
-                />
-              )}
-
-              {currentUser.role === 'warden' && (
-                <WardenPortal 
-                  user={currentUser} 
-                />
-              )}
-
-              {currentUser.role === 'workers_manager' && (
-                <WorkersManagerPortal 
-                  user={currentUser} 
+                  simulatedContext={simulatedContext}
+                  bookings={bookings}
+                  onApprove={handleApproveBooking}
+                  onReject={handleRejectBooking}
+                  onNewBooking={handleNewBooking}
                 />
               )}
 
@@ -141,7 +155,7 @@ export default function App() {
           </div>
 
           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            GENESIS 2026 • Campus Setu
+            GENESIS 2026 • Amrita InnovateX
           </div>
         </div>
       </footer>

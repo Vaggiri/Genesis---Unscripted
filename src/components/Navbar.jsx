@@ -59,14 +59,14 @@ export default function Navbar({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
-                Campus <span style={{ color: 'var(--amrita-maroon)' }}>Setu</span>
+                Amrita <span style={{ color: 'var(--amrita-maroon)' }}>InnovateX</span>
               </span>
               <span className="badge badge-maroon" style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem' }}>
                 Portal
               </span>
             </div>
             <div style={{ fontSize: '0.675rem', color: 'var(--text-muted)', lineHeight: 1 }}>
-              Innovation Facility Booking & Utilization
+              Centralized Innovation Facility Booking & Utilization
             </div>
           </div>
         </div>

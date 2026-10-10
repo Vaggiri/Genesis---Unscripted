@@ -148,7 +148,7 @@ export default function LoginPage({ onLoginSuccess }) {
             marginBottom: '0.2rem',
             letterSpacing: '-0.02em'
           }}>
-            Campus <span style={{ color: 'var(--amrita-maroon)' }}>Setu</span>
+            Amrita <span style={{ color: 'var(--amrita-maroon)' }}>InnovateX</span>
           </h1>
           <p style={{ 
             fontSize: '0.85rem', 
@@ -169,7 +169,7 @@ export default function LoginPage({ onLoginSuccess }) {
             padding: '0.2rem 0.75rem',
             borderRadius: 'var(--radius-full)'
           }}>
-            Unified Amrita Single Sign-On (SSO)
+            AI Lab Matching • Component Stock Radar • Slot Booking
           </div>
         </div>
 
