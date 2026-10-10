@@ -28,5 +28,10 @@ dist-ssr
 *.suo
 *.ntvs*
 *.njsproj
+
+# Unused directories
+frontend/
+backend/
+.claude/
 *.sln
 *.sw?

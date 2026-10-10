@@ -409,16 +409,16 @@ export default function LoginPage({ onLoginSuccess }) {
                     💡 Quick Fill Demo Credentials (For Testing)
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.45rem' }}>
                   <button
                     type="button"
                     onClick={() => handleDemoFill('student')}
                     style={{
-                      padding: '0.35rem 0.25rem',
+                      padding: '0.45rem 0.35rem',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-light)',
                       backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
+                      fontSize: '0.74rem',
                       fontWeight: 600,
                       color: 'var(--text-main)',
                       cursor: 'pointer',
@@ -431,86 +431,35 @@ export default function LoginPage({ onLoginSuccess }) {
                     type="button"
                     onClick={() => handleDemoFill('faculty')}
                     style={{
-                      padding: '0.35rem 0.25rem',
+                      padding: '0.45rem 0.35rem',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-light)',
                       backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
+                      fontSize: '0.74rem',
                       fontWeight: 600,
                       color: 'var(--text-main)',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    📖 Faculty
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoFill('parent')}
-                    style={{
-                      padding: '0.35rem 0.25rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-light)',
-                      backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: 'var(--text-main)',
-                      cursor: 'pointer',
-                      textAlign: 'center'
-                    }}
-                  >
-                    👨‍👩‍👧 Parent
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoFill('warden')}
-                    style={{
-                      padding: '0.35rem 0.25rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-light)',
-                      backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: 'var(--text-main)',
-                      cursor: 'pointer',
-                      textAlign: 'center'
-                    }}
-                  >
-                    🛡️ Warden
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDemoFill('workers_manager')}
-                    style={{
-                      padding: '0.35rem 0.25rem',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--border-light)',
-                      backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
-                      fontWeight: 600,
-                      color: 'var(--text-main)',
-                      cursor: 'pointer',
-                      textAlign: 'center'
-                    }}
-                  >
-                    🔧 Worker Mgr
+                    📖 Faculty In-Charge
                   </button>
                   <button
                     type="button"
                     onClick={() => handleDemoFill('admin')}
                     style={{
-                      padding: '0.35rem 0.25rem',
+                      padding: '0.45rem 0.35rem',
                       borderRadius: 'var(--radius-sm)',
                       border: '1px solid var(--border-light)',
                       backgroundColor: 'var(--bg-surface-alt)',
-                      fontSize: '0.72rem',
+                      fontSize: '0.74rem',
                       fontWeight: 600,
                       color: 'var(--amrita-maroon)',
                       cursor: 'pointer',
                       textAlign: 'center'
                     }}
                   >
-                    🔒 Admin
+                    🔒 Lab Admin
                   </button>
                 </div>
               </div>
@@ -527,14 +476,11 @@ export default function LoginPage({ onLoginSuccess }) {
                 <select
                   value={signupRole}
                   onChange={(e) => setSignupRole(e.target.value)}
-                  className="form-input"
+                  className="form-select"
                   style={{ minHeight: '42px', fontSize: '0.85rem' }}
                 >
-                  <option value="student">Student (Roll No: CB.EN.U4...)</option>
-                  <option value="parent">Parent (10-Digit Mobile)</option>
-                  <option value="faculty">Faculty (AMR-FAC-...)</option>
-                  <option value="warden">Hostel Warden (AMR-WRD-...)</option>
-                  <option value="workers_manager">Maintenance / Workers Manager</option>
+                  <option value="student">Student Innovator (Roll No: CB.EN.U4...)</option>
+                  <option value="faculty">Faculty & Lab In-Charge (Employee ID: AMR-FAC-...)</option>
                 </select>
               </div>
 
