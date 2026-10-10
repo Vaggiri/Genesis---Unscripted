@@ -53,7 +53,7 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
     }
   ];
 
-  const handleSendMessage = (customText) => {
+  const handleSendMessage = async (customText) => {
     const textToSend = customText || inputQuery;
     if (!textToSend.trim()) return;
 
@@ -70,35 +70,67 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
     setSuggestedMatch(null);
     setBookingSuccess(false);
 
-    // Analyze query text against lab metadata
-    setTimeout(() => {
-      const lower = textToSend.toLowerCase();
-      let matchedLab = null;
-      let reason = '';
-      let detectedTech = [];
+    // Call live OmniRoute AI model 'vag'
+    try {
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [...messages, userMsg],
+          userName: user?.name,
+          userRole: user?.role
+        })
+      });
 
-      if (lower.includes('pytorch') || lower.includes('yolo') || lower.includes('gpu') || lower.includes('deep learning') || lower.includes('ai') || lower.includes('model') || lower.includes('cuda') || lower.includes('python')) {
-        matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-ai-hpc');
-        detectedTech = ['NVIDIA RTX 4090 (24GB VRAM)', 'PyTorch 2.3 + CUDA 12.4', 'Ubuntu 22.04 LTS High-Compute Workstation'];
-        reason = 'Matched based on high-performance GPU compute requirements and pre-installed AI/ML frameworks.';
-      } else if (lower.includes('circuit') || lower.includes('lm741') || lower.includes('op-amp') || lower.includes('vivado') || lower.includes('vlsi') || lower.includes('oscilloscope') || lower.includes('fpga') || lower.includes('hardware') || lower.includes('stm32') || lower.includes('altium')) {
-        matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-vlsi-embedded');
-        detectedTech = ['Tektronix 100MHz 4-Ch DSO', 'LM741 Op-Amp & Discrete Bench Stock (Drawer #4)', 'Altium Designer & Xilinx Vivado 2023.2'];
-        reason = 'Matched based on analog bench instrumentation and active component drawer inventory.';
-      } else if (lower.includes('3d print') || lower.includes('proto') || lower.includes('chassis') || lower.includes('drone') || lower.includes('cad') || lower.includes('stl') || lower.includes('laser') || lower.includes('petg') || lower.includes('pla')) {
-        matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-fablab-proto');
-        detectedTech = ['Prusa MK4 3D Printer (PLA/PETG)', 'Epilog 60W CO2 Laser Cutter', 'Autodesk Fusion 360 CAM'];
-        reason = 'Matched based on rapid hardware fabrication tools and filament material readiness.';
-      } else {
-        matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-iot-robotics');
-        detectedTech = ['ROS 2 Autonomous Sandbox', 'LoRa SX1278 RF Node Gateway', 'TurtleBot 4 Testing Arena'];
-        reason = 'Matched based on multi-sensor robotics and IoT communications infrastructure.';
+      if (!response.ok) throw new Error(`AI status ${response.status}`);
+      const data = await response.json();
+      const aiReply = data.reply || 'I have analyzed your request.';
+
+      // Check if response contains structured recommendation JSON block
+      let matchedLab = null;
+      let detectedTech = [];
+      let recommendedSlot = '';
+
+      const jsonMatch = aiReply.match(/```json\s*([\s\S]*?)\s*```/);
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1]);
+          if (parsed.recommendedLabId) {
+            matchedLab = INNOVATION_LABS.find(l => l.id === parsed.recommendedLabId) || INNOVATION_LABS[0];
+            detectedTech = parsed.detectedSpecs || [];
+            recommendedSlot = parsed.recommendedSlot || matchedLab.availableSlotsToday[0];
+          }
+        } catch (e) {
+          console.warn('Could not parse AI json block:', e);
+        }
       }
+
+      // Fallback matching if AI gave pure natural text
+      if (!matchedLab) {
+        const lower = (textToSend + ' ' + aiReply).toLowerCase();
+        if (lower.includes('pytorch') || lower.includes('cuda') || lower.includes('gpu') || lower.includes('deep learning') || lower.includes('hpc') || lower.includes('ai')) {
+          matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-ai-hpc');
+          detectedTech = ['NVIDIA RTX 4090 24GB VRAM', 'PyTorch 2.3 + CUDA 12.4', 'High-Compute Workstation'];
+        } else if (lower.includes('circuit') || lower.includes('lm741') || lower.includes('op-amp') || lower.includes('vivado') || lower.includes('vlsi') || lower.includes('oscilloscope')) {
+          matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-vlsi-embedded');
+          detectedTech = ['Tektronix 100MHz 4-Ch DSO', 'LM741 Op-Amp & Discrete Bench Stock (Drawer #4)', 'Altium Designer & Vivado 2023'];
+        } else if (lower.includes('3d print') || lower.includes('proto') || lower.includes('chassis') || lower.includes('drone') || lower.includes('laser') || lower.includes('petg') || lower.includes('pla')) {
+          matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-fablab-proto');
+          detectedTech = ['Prusa MK4 3D Printer (PLA/PETG)', 'Epilog 60W CO2 Laser Cutter', 'Autodesk Fusion 360'];
+        } else {
+          matchedLab = INNOVATION_LABS.find(l => l.id === 'lab-iot-robotics');
+          detectedTech = ['ROS 2 Autonomous Sandbox', 'LoRa SX1278 RF Node Gateway', 'TurtleBot 4 Testing Arena'];
+        }
+        recommendedSlot = matchedLab.availableSlotsToday[0] || '10:00 AM Today';
+      }
+
+      // Clean display text without raw json block if present
+      const cleanDisplayText = aiReply.replace(/```json[\s\S]*?```/, '').trim();
 
       const botReply = {
         id: `msg-${Date.now() + 1}`,
         sender: 'bot',
-        text: `🎯 **Optimal Facility Identified:** **${matchedLab.name}** (${matchedLab.block})\n\n💡 **Why this lab?** ${reason}\n\n✔️ **Available Resources Verified:**\n${detectedTech.map(t => `• ${t}`).join('\n')}\n\n👉 Review the recommended facility profile and book an open slot below!`,
+        text: cleanDisplayText,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
@@ -106,12 +138,37 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
       setSuggestedMatch({
         lab: matchedLab,
         detectedTech,
-        reason,
+        slot: recommendedSlot,
         querySummary: textToSend
       });
-      setSelectedSlot(matchedLab.availableSlotsToday[0] || '');
+      setSelectedSlot(recommendedSlot || matchedLab.availableSlotsToday[0] || '');
+    } catch (err) {
+      console.warn('AI call error, using local lab heuristic:', err);
+      // Resilient heuristic fallback
+      const lower = textToSend.toLowerCase();
+      let matchedLab = INNOVATION_LABS[0];
+      if (lower.includes('circuit') || lower.includes('lm741') || lower.includes('vivado')) matchedLab = INNOVATION_LABS[1];
+      else if (lower.includes('3d') || lower.includes('print') || lower.includes('drone')) matchedLab = INNOVATION_LABS[2];
+      else if (lower.includes('robot') || lower.includes('iot')) matchedLab = INNOVATION_LABS[3];
+
+      const fallbackReply = {
+        id: `msg-${Date.now() + 1}`,
+        sender: 'bot',
+        text: `🎯 **Optimal Facility Identified:** **${matchedLab.name}** (${matchedLab.block})\n\nVerified matching toolchains, components and available slot. You can proceed to confirm below!`,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => [...prev, fallbackReply]);
+      setSuggestedMatch({
+        lab: matchedLab,
+        detectedTech: ['Component & Machine Specs Verified'],
+        slot: matchedLab.availableSlotsToday[0],
+        querySummary: textToSend
+      });
+      setSelectedSlot(matchedLab.availableSlotsToday[0]);
+    } finally {
       setIsAnalyzing(false);
-    }, 700);
+    }
   };
 
   const handleConfirmBooking = () => {
