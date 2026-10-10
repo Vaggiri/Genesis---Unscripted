@@ -32,36 +32,23 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: '720px' }}>
+      <div className="modal-content" style={{ maxWidth: '640px' }}>
         {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid var(--border-subtle)',
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid var(--border-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(79, 70, 229, 0.05)'
+          backgroundColor: 'var(--amrita-maroon-bg)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'rgba(99, 102, 241, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <Calendar size={22} color="#818cf8" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                Master Timetable: Room {classroom.room_number}
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {classroom.block} • Floor {classroom.floor} • Seating Capacity: {classroom.capacity}
-              </p>
-            </div>
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--amrita-maroon)' }}>
+              Timetable: Room {classroom.room_number}
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {classroom.block} • Floor {classroom.floor} • Capacity {classroom.capacity} Seats
+            </p>
           </div>
           <button 
             onClick={onClose}
@@ -71,29 +58,29 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
           </button>
         </div>
 
-        {/* Day Selector Tabs */}
+        {/* Day Selector */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid var(--border-subtle)',
-          background: 'rgba(0, 0, 0, 0.25)',
+          borderBottom: '1px solid var(--border-light)',
+          backgroundColor: 'var(--bg-surface-alt)',
           overflowX: 'auto',
-          padding: '0 1rem'
+          padding: '0 0.5rem'
         }}>
           {daysOfWeek.map((day) => (
             <button
               key={day}
               onClick={() => setSelectedDay(day)}
               style={{
-                padding: '0.75rem 1rem',
+                padding: '0.65rem 0.85rem',
+                minHeight: '40px',
                 background: 'transparent',
                 border: 'none',
-                borderBottom: selectedDay === day ? '2px solid var(--primary-light)' : '2px solid transparent',
-                color: selectedDay === day ? '#fff' : 'var(--text-muted)',
-                fontWeight: 600,
-                fontSize: '0.825rem',
+                borderBottom: selectedDay === day ? '2px solid var(--amrita-maroon)' : '2px solid transparent',
+                color: selectedDay === day ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                fontWeight: selectedDay === day ? 700 : 500,
+                fontSize: '0.8rem',
                 cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'var(--transition)'
+                whiteSpace: 'nowrap'
               }}
             >
               {day}
@@ -101,91 +88,70 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
           ))}
         </div>
 
-        {/* Schedule Content */}
-        <div style={{ padding: '1.5rem', maxHeight: '55vh', overflowY: 'auto' }}>
+        {/* Schedule List */}
+        <div style={{ padding: '1rem', maxHeight: '55vh', overflowY: 'auto' }}>
           {loading ? (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Loading master timetable from cloud database...
+            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              Loading schedule...
             </div>
           ) : currentDaySlots.length === 0 ? (
             <div style={{
               textAlign: 'center',
-              padding: '3rem 1rem',
-              background: 'rgba(16, 185, 129, 0.05)',
-              border: '1px dashed rgba(16, 185, 129, 0.25)',
-              borderRadius: '12px'
+              padding: '2.5rem 1rem',
+              backgroundColor: 'var(--status-available-bg)',
+              border: '1px dashed var(--status-available-border)',
+              borderRadius: 'var(--radius-md)'
             }}>
-              <CheckCircle2 size={36} color="#10b981" style={{ margin: '0 auto 0.75rem' }} />
-              <h4 style={{ fontSize: '1.1rem', color: '#6ee7b7', marginBottom: '0.4rem' }}>
+              <CheckCircle2 size={32} color="var(--status-available)" style={{ margin: '0 auto 0.5rem' }} />
+              <h4 style={{ fontSize: '1rem', color: 'var(--status-available-text)', fontWeight: 700, marginBottom: '0.25rem' }}>
                 Entire Day Free & Vacant!
               </h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', maxWidth: '420px', margin: '0 auto' }}>
-                No scheduled academic lectures are booked for Room {classroom.room_number} on {selectedDay}. Ideal for hackathons, study circles, and project teams!
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                No scheduled academic lectures in Room {classroom.room_number} on {selectedDay}.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
               {currentDaySlots.map((slot, idx) => (
                 <div 
                   key={idx}
                   style={{
-                    background: slot.is_lab ? 'rgba(6, 182, 212, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                    border: `1px solid ${slot.is_lab ? 'rgba(6, 182, 212, 0.25)' : 'var(--border-subtle)'}`,
-                    borderRadius: '10px',
-                    padding: '1rem 1.25rem',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.85rem 1rem',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '1rem'
+                    gap: '0.75rem'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
-                    <div style={{
-                      background: 'rgba(0, 0, 0, 0.4)',
-                      padding: '0.45rem 0.75rem',
-                      borderRadius: '8px',
-                      textAlign: 'center',
-                      minWidth: '105px'
-                    }}>
-                      <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                        SLOT #{slot.slot_number}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                        <Clock size={12} color="#818cf8" />
-                        <span>{slot.start_time} - {slot.end_time}</span>
-                      </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.2rem' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                        {slot.subject_name}
+                      </span>
+                      {slot.is_lab && (
+                        <span className="badge badge-lab" style={{ fontSize: '0.65rem' }}>
+                          Lab
+                        </span>
+                      )}
                     </div>
-
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <h4 style={{ fontSize: '0.975rem', fontWeight: 700 }}>
-                          {slot.subject_name}
-                        </h4>
-                        {slot.subject_code && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                            {slot.subject_code}
-                          </span>
-                        )}
-                        {slot.is_lab && (
-                          <span className="badge badge-cyan" style={{ fontSize: '0.675rem' }}>
-                            <FlaskConical size={11} /> Lab Practical
-                          </span>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.775rem', color: 'var(--text-secondary)' }}>
-                        <span>
-                          <strong>Batch:</strong> {slot.batch}
-                        </span>
-                        <span>
-                          <strong>Department:</strong> {slot.department}
-                        </span>
-                        <span>
-                          <User size={12} style={{ display: 'inline', marginRight: '3px' }} />
-                          {slot.faculty_name}
-                        </span>
-                      </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {slot.batch} • {slot.department} • {slot.faculty_name}
                     </div>
+                  </div>
+
+                  <div style={{
+                    backgroundColor: 'var(--bg-surface-alt)',
+                    padding: '0.35rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: 'var(--text-main)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {slot.start_time} - {slot.end_time}
                   </div>
                 </div>
               ))}
@@ -193,10 +159,10 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
           )}
         </div>
 
-        {/* Modal Footer */}
-        <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} className="btn-secondary" style={{ fontSize: '0.85rem' }}>
-            Close Timetable
+        {/* Footer */}
+        <div style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-light)', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} className="btn-secondary" style={{ minHeight: '36px', fontSize: '0.8rem' }}>
+            Close
           </button>
         </div>
       </div>

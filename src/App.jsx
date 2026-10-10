@@ -7,13 +7,12 @@ import FabLabPreview from './components/FabLabPreview';
 import AdminPortal from './components/AdminPortal';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
 import { api } from './services/api';
-import { Building2, Sparkles, Layers, ShieldCheck } from 'lucide-react';
+import { Building2, Compass, ShieldCheck, Cpu, Sliders } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'classrooms' | 'parent-epass' | 'fablab' | 'admin'
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
   
-  // Simulated day & time (e.g. 'Monday', '09:15', or empty string for real clock)
   const [simulatedContext, setSimulatedContext] = useState({
     day: 'Monday',
     time: ''
@@ -23,11 +22,12 @@ export default function App() {
     campus_name: 'Amrita Vishwa Vidyapeetham — Coimbatore',
     active_semester: 'Even Semester 2026',
     flag_threshold: 2,
-    banner_message: '📢 Real-time Classroom & Lab Occupancy live. If an unscheduled batch has occupied a room, submit a report to alert peers!',
+    banner_message: '📢 Real-time Classroom & Lab Occupancy live. Submit reports for unannounced room takeovers.',
     banner_active: true
   });
 
   const [pagesConfig, setPagesConfig] = useState([]);
+  const [classroomsList, setClassroomsList] = useState([]);
 
   const [stats, setStats] = useState({
     totalRooms: 10,
@@ -49,6 +49,8 @@ export default function App() {
       if (pagesRes) setPagesConfig(pagesRes);
 
       const rooms = classRes?.classrooms || [];
+      setClassroomsList(rooms);
+
       const avail = rooms.filter(r => r.status === 'available').length;
       const flagged = rooms.filter(r => r.is_flagged || r.status === 'flagged_occupied').length;
 
@@ -68,17 +70,15 @@ export default function App() {
   }, [simulatedContext.day, simulatedContext.time]);
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-page)' }}>
       {/* Top Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-        simulatedContext={simulatedContext}
-        setSimulatedContext={setSimulatedContext}
       />
 
-      {/* Main Content Area */}
+      {/* Main Content Container */}
       <main style={{ flex: 1 }}>
         <div className="container">
           {activeTab === 'home' && (
@@ -86,7 +86,7 @@ export default function App() {
               onNavigate={(tab) => setActiveTab(tab)}
               stats={stats}
               settings={settings}
-              pagesConfig={pagesConfig}
+              classrooms={classroomsList}
             />
           )}
 
@@ -119,11 +119,11 @@ export default function App() {
         </div>
       </main>
 
-      {/* Footer */}
+      {/* Amrita Institutional Footer */}
       <footer style={{
-        borderTop: '1px solid var(--border-subtle)',
-        background: 'rgba(11, 15, 25, 0.95)',
-        padding: '2rem 0',
+        borderTop: '1px solid var(--border-light)',
+        backgroundColor: '#ffffff',
+        padding: '1.25rem 0',
         marginTop: 'auto'
       }}>
         <div className="container" style={{
@@ -131,38 +131,64 @@ export default function App() {
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '1rem',
+          gap: '0.75rem',
           fontSize: '0.8rem',
-          color: 'var(--text-muted)'
+          color: 'var(--text-secondary)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <Building2 size={16} color="#818cf8" />
-            <span style={{ color: '#fff', fontWeight: 600 }}>CampusSync Ecosystem</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontWeight: 800, color: 'var(--amrita-maroon)' }}>AMRITA</span>
             <span>•</span>
-            <span>Amrita Vishwa Vidyapeetham</span>
+            <span>Vishwa Vidyapeetham</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <span>GENESIS 2026 Hackathon (Problem Statement #9)</span>
-            <button
-              onClick={() => setIsSupabaseModalOpen(true)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#34d399',
-                cursor: 'pointer',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <Sparkles size={13} />
-              <span>Supabase Cloud Integration</span>
-            </button>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            GENESIS 2026 • CampusSync
           </div>
         </div>
       </footer>
+
+      {/* Mobile Smartphone Bottom Navigation Bar (1-Thumb Reachability) */}
+      <nav className="mobile-bottom-nav">
+        <button
+          onClick={() => setActiveTab('home')}
+          className={`mobile-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+        >
+          <Building2 size={20} />
+          <span>Home</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('classrooms')}
+          className={`mobile-nav-item ${activeTab === 'classrooms' ? 'active' : ''}`}
+        >
+          <Compass size={20} />
+          <span>Rooms</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('parent-epass')}
+          className={`mobile-nav-item ${activeTab === 'parent-epass' ? 'active' : ''}`}
+        >
+          <ShieldCheck size={20} />
+          <span>Gate Pass</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('fablab')}
+          className={`mobile-nav-item ${activeTab === 'fablab' ? 'active' : ''}`}
+        >
+          <Cpu size={20} />
+          <span>FabLab</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('admin')}
+          className={`mobile-nav-item ${activeTab === 'admin' ? 'active' : ''}`}
+        >
+          <Sliders size={20} />
+          <span>Admin</span>
+        </button>
+      </nav>
 
       {/* Supabase Cloud Database Configuration Modal */}
       <SupabaseConfigModal

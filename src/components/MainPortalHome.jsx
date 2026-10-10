@@ -1,332 +1,363 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Compass, 
   ShieldCheck, 
   Cpu, 
   Sliders, 
+  Search, 
   ArrowRight, 
   CheckCircle2, 
   AlertTriangle, 
-  Layers, 
-  Sparkles,
-  Info
+  Clock, 
+  Building,
+  Sparkles
 } from 'lucide-react';
 
 export default function MainPortalHome({ 
   onNavigate, 
   stats, 
   settings, 
-  pagesConfig = [] 
+  classrooms = [] 
 }) {
-  // Find custom titles from dynamic pages config if set by admin
-  const getPageInfo = (slug, fallbackTitle, fallbackSubtitle) => {
-    const page = pagesConfig.find(p => p.slug === slug);
-    if (!page) return { title: fallbackTitle, subtitle: fallbackSubtitle };
-    return {
-      title: page.title || fallbackTitle,
-      subtitle: page.subtitle || fallbackSubtitle,
-      badge: page.badge
-    };
-  };
+  const [quickSearch, setQuickSearch] = useState('');
+  const [quickBlock, setQuickBlock] = useState('All');
 
-  const roomModuleInfo = getPageInfo(
-    'classroom-occupancy',
-    'Classroom & Lab Occupancy Locator',
-    'Live timetable cross-indexing, vacancy detection, and crowdsourced occupancy reporting'
-  );
-
-  const parentModuleInfo = getPageInfo(
-    'parent-epass',
-    'Parent Hostel Visit & Gate E-Pass',
-    'Pre-clearance QR fast lane, warden 1-click approvals, and secure digital gate logs'
-  );
-
-  const fablabModuleInfo = getPageInfo(
-    'fablab-desk',
-    'AI FabLab Intake Desk',
-    'Multi-turn conversational triage for 3D printing & PCB CNC fabrication work orders'
-  );
-
-  const adminModuleInfo = getPageInfo(
-    'admin-portal',
-    'CampusSync Administrative Console',
-    'Zero-hardcode dynamic page configuration, timetable management, and report moderation'
-  );
+  // Filter classrooms for the quick-lookup on landing page
+  const filteredQuickRooms = (classrooms || []).filter(room => {
+    const matchesSearch = 
+      room.room_number.toLowerCase().includes(quickSearch.toLowerCase()) ||
+      room.block.toLowerCase().includes(quickSearch.toLowerCase());
+    const matchesBlock = quickBlock === 'All' || room.block === quickBlock;
+    return matchesSearch && matchesBlock;
+  }).slice(0, 4); // show top 4 for quick mobile glance
 
   return (
-    <div style={{ padding: '2rem 0 4rem' }}>
-      {/* Dynamic Announcement Banner (Admin Editable) */}
+    <div style={{ padding: '1rem 0 2rem' }}>
+      
+      {/* Optional Campus Alert Banner */}
       {settings?.banner_active && settings?.banner_message && (
         <div style={{
-          background: 'linear-gradient(90deg, rgba(79, 70, 229, 0.15) 0%, rgba(16, 185, 129, 0.12) 100%)',
-          border: '1px solid rgba(99, 102, 241, 0.3)',
+          backgroundColor: 'var(--amrita-gold-bg)',
+          border: '1px solid var(--amrita-gold-border)',
           borderRadius: 'var(--radius-md)',
-          padding: '0.85rem 1.25rem',
+          padding: '0.65rem 1rem',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.75rem',
-          marginBottom: '2rem',
-          fontSize: '0.875rem',
-          color: '#e0e7ff'
+          gap: '0.65rem',
+          marginBottom: '1.25rem',
+          fontSize: '0.825rem',
+          color: 'var(--status-flagged-text)',
+          fontWeight: 500
         }}>
-          <Sparkles size={18} color="#818cf8" style={{ flexShrink: 0 }} />
-          <span style={{ flex: 1 }}>{settings.banner_message}</span>
-          <span className="badge badge-emerald" style={{ fontSize: '0.7rem' }}>
-            {settings?.active_semester || 'Active Semester'}
-          </span>
+          <Sparkles size={16} color="var(--amrita-gold)" style={{ flexShrink: 0 }} />
+          <span>{settings.banner_message}</span>
         </div>
       )}
 
-      {/* Hero Welcome */}
-      <div style={{ textAlign: 'center', maxWidth: '780px', margin: '0 auto 3rem' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }} className="badge badge-indigo">
-          <Layers size={13} />
-          <span>Problem Statement #9: Unified Campus E-Governance</span>
-        </div>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.2, marginBottom: '1rem' }}>
-          Smart Campus Operations, <br />
-          <span style={{ 
-            background: 'linear-gradient(135deg, #818cf8 0%, #34d399 100%)', 
-            WebkitBackgroundClip: 'text', 
-            WebkitTextFillColor: 'transparent' 
-          }}>
-            Zero Paperwork. Zero Guesswork.
-          </span>
+      {/* Clean Hero for Mobile & Desktop */}
+      <div style={{ textAlign: 'center', padding: '1rem 0 1.75rem' }}>
+        <span className="badge badge-maroon" style={{ marginBottom: '0.5rem' }}>
+          Amrita E-Governance Portal
+        </span>
+        <h1 style={{ fontSize: 'clamp(1.5rem, 5vw, 2.25rem)', color: 'var(--text-main)', marginBottom: '0.4rem', lineHeight: 1.2 }}>
+          Campus Operations & Space Radar
         </h1>
-        <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-          {settings?.campus_name || 'Amrita Vishwa Vidyapeetham'}. Seamlessly bridging physical security checkpoints, makerspace prototyping requests, and real-time academic classroom availability.
+        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', maxWidth: '480px', margin: '0 auto' }}>
+          Find vacant classrooms instantly, request gate visitor clearance, and track campus lab services.
         </p>
+
+        {/* Live Quick Counter Pill */}
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          backgroundColor: 'var(--status-available-bg)',
+          border: '1px solid var(--status-available-border)',
+          color: 'var(--status-available-text)',
+          padding: '0.4rem 0.85rem',
+          borderRadius: 'var(--radius-full)',
+          fontSize: '0.8rem',
+          fontWeight: 700,
+          marginTop: '0.85rem'
+        }}>
+          <span className="pulse-dot available" />
+          <span>{stats.availableRooms || 6} Classrooms Free Right Now</span>
+        </div>
       </div>
 
-      {/* Live Campus Telemetry Badges */}
+      {/* 4 Core Quick Access Action Cards (Touch-Optimized for Mobile) */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '1rem',
-        marginBottom: '3rem'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+        gap: '0.85rem',
+        marginBottom: '2rem'
       }}>
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>INDEXED ROOMS</span>
-            <Compass size={18} color="#818cf8" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{stats.totalRooms || 10}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Across AB-1, AB-2, AB-3, CIR</div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: '#34d399', fontWeight: 600 }}>AVAILABLE RIGHT NOW</span>
-            <span className="pulse-dot dot-available" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#34d399' }}>{stats.availableRooms || 6}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Free for project teams & study</div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: '#fbbf24', fontWeight: 600 }}>FLAGGED ROOMS</span>
-            <AlertTriangle size={18} color="#f59e0b" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: '#fbbf24' }}>{stats.flaggedRooms || 1}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Reported occupied ≥2x unscheduled</div>
-        </div>
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>CROWD REPORTS</span>
-            <Info size={18} color="#38bdf8" />
-          </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{stats.totalReports || 3}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Live crowdsourced status updates</div>
-        </div>
-      </div>
-
-      {/* Main Navigation Modules Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
         
-        {/* Module 1: Classroom Occupancy (ACTIVE & EXPANDED) */}
+        {/* Card 1: Classroom Occupancy */}
         <div 
-          className="glass-panel" 
-          style={{ 
-            padding: '1.75rem', 
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            background: 'linear-gradient(180deg, rgba(19, 27, 46, 0.85) 0%, rgba(16, 185, 129, 0.05) 100%)',
+          onClick={() => onNavigate('classrooms')}
+          className="card-amrita"
+          style={{
+            padding: '1.15rem',
+            cursor: 'pointer',
+            borderLeft: '4px solid var(--status-available)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ 
-                width: '44px', 
-                height: '44px', 
-                borderRadius: '12px', 
-                background: 'rgba(16, 185, 129, 0.15)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--status-available-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <Compass size={24} color="#10b981" />
+                <Compass size={22} color="var(--status-available)" />
               </div>
-              <span className="badge badge-emerald">Active Module</span>
+              <span className="badge badge-available">Live Matrix</span>
             </div>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {roomModuleInfo.title}
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              {roomModuleInfo.subtitle}. View occupancy, batch/department details, lab tags, and student crowd reporting with automated multi-report flagging.
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+              Classroom Occupancy
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Find free lecture halls & labs with live schedules and crowd reports.
             </p>
           </div>
-
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', fontSize: '0.8rem', color: '#6ee7b7' }}>
-              <CheckCircle2 size={16} />
-              <span>Timetable collision detection + Crowdsource reporting live</span>
-            </div>
-            <button 
-              onClick={() => onNavigate('classrooms')}
-              className="btn-primary" 
-              style={{ width: '100%', background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
-            >
-              <span>Explore Classroom Locator</span>
-              <ArrowRight size={16} />
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--amrita-maroon)', fontWeight: 700, fontSize: '0.85rem' }}>
+            <span>Find Rooms Now</span>
+            <ArrowRight size={15} />
           </div>
         </div>
 
-        {/* Module 2: Parent E-Pass */}
+        {/* Card 2: Parent Gate Pass */}
         <div 
-          className="glass-panel" 
-          style={{ 
-            padding: '1.75rem',
+          onClick={() => onNavigate('parent-epass')}
+          className="card-amrita"
+          style={{
+            padding: '1.15rem',
+            cursor: 'pointer',
+            borderLeft: '4px solid var(--amrita-maroon)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ 
-                width: '44px', 
-                height: '44px', 
-                borderRadius: '12px', 
-                background: 'rgba(99, 102, 241, 0.15)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--amrita-maroon-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <ShieldCheck size={24} color="#818cf8" />
+                <ShieldCheck size={22} color="var(--amrita-maroon)" />
               </div>
-              <span className="badge badge-indigo">Pillar 1: E-Governance</span>
+              <span className="badge badge-maroon">E-Governance</span>
             </div>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {parentModuleInfo.title}
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              {parentModuleInfo.subtitle}. Replaces paper slips with anti-screenshot dynamic QR passes and sub-second gate security verification.
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+              Parent Gate Pass
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Fast QR pre-clearance for parent hostel visits and gate verification.
             </p>
           </div>
-
-          <button 
-            onClick={() => onNavigate('parent-epass')}
-            className="btn-secondary" 
-            style={{ width: '100%' }}
-          >
-            <span>View E-Pass Workflow</span>
-            <ArrowRight size={16} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--amrita-maroon)', fontWeight: 700, fontSize: '0.85rem' }}>
+            <span>Generate Pass</span>
+            <ArrowRight size={15} />
+          </div>
         </div>
 
-        {/* Module 3: AI FabLab Intake */}
+        {/* Card 3: FabLab Service */}
         <div 
-          className="glass-panel" 
-          style={{ 
-            padding: '1.75rem',
+          onClick={() => onNavigate('fablab')}
+          className="card-amrita"
+          style={{
+            padding: '1.15rem',
+            cursor: 'pointer',
+            borderLeft: '4px solid var(--status-lab)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ 
-                width: '44px', 
-                height: '44px', 
-                borderRadius: '12px', 
-                background: 'rgba(6, 182, 212, 0.15)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--status-lab-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <Cpu size={24} color="#38bdf8" />
+                <Cpu size={22} color="var(--status-lab)" />
               </div>
-              <span className="badge badge-cyan">Pillar 2: AI Service Desk</span>
+              <span className="badge badge-lab">Makerspace</span>
             </div>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {fablabModuleInfo.title}
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              {fablabModuleInfo.subtitle}. Conversational AI agent acting as a virtual lab technician to elicit complete engineering parameters.
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+              FabLab Service Request
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Interactive intake assistant for 3D printing & PCB fabrication.
             </p>
           </div>
-
-          <button 
-            onClick={() => onNavigate('fablab')}
-            className="btn-secondary" 
-            style={{ width: '100%' }}
-          >
-            <span>View AI Service Desk</span>
-            <ArrowRight size={16} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--amrita-maroon)', fontWeight: 700, fontSize: '0.85rem' }}>
+            <span>Submit Request</span>
+            <ArrowRight size={15} />
+          </div>
         </div>
 
-        {/* Module 4: Administrative Console (Dynamic CMS) */}
+        {/* Card 4: Admin Portal */}
         <div 
-          className="glass-panel" 
-          style={{ 
-            padding: '1.75rem',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
+          onClick={() => onNavigate('admin')}
+          className="card-amrita"
+          style={{
+            padding: '1.15rem',
+            cursor: 'pointer',
+            borderLeft: '4px solid var(--amrita-gold)',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between'
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-              <div style={{ 
-                width: '44px', 
-                height: '44px', 
-                borderRadius: '12px', 
-                background: 'rgba(245, 158, 11, 0.15)', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.65rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--amrita-gold-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
               }}>
-                <Sliders size={24} color="#f59e0b" />
+                <Sliders size={22} color="var(--amrita-gold)" />
               </div>
-              <span className="badge badge-amber">Admin Control Desk</span>
+              <span className="badge badge-flagged">Admin</span>
             </div>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-              {adminModuleInfo.title}
-            </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: '1.25rem' }}>
-              {adminModuleInfo.subtitle}. Add/edit classrooms, update weekly timetables, moderate crowd reports, and dynamically edit portal text without touching code.
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.2rem' }}>
+              Admin Console
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Edit timetables, manage rooms, and review student crowd reports.
             </p>
           </div>
-
-          <button 
-            onClick={() => onNavigate('admin')}
-            className="btn-secondary" 
-            style={{ width: '100%', borderColor: 'rgba(245, 158, 11, 0.3)', color: '#fcd34d' }}
-          >
-            <span>Launch Admin Portal</span>
-            <ArrowRight size={16} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--amrita-maroon)', fontWeight: 700, fontSize: '0.85rem' }}>
+            <span>Manage Portal</span>
+            <ArrowRight size={15} />
+          </div>
         </div>
 
       </div>
+
+      {/* Quick Classroom Availability Finder Right on Landing Page */}
+      <div className="card-amrita" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)' }}>
+              Quick Room Finder
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Check live status of any room on campus right now
+            </p>
+          </div>
+
+          <button
+            onClick={() => onNavigate('classrooms')}
+            className="btn-amrita"
+            style={{ minHeight: '38px', padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}
+          >
+            <span>Full Matrix</span>
+            <ArrowRight size={14} />
+          </button>
+        </div>
+
+        {/* Quick Search & Block Filters */}
+        <div style={{ display: 'flex', gap: '0.6rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 200px' }}>
+            <Search size={16} color="var(--text-muted)" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder="Search room (e.g. 101, 204)..."
+              value={quickSearch}
+              onChange={(e) => setQuickSearch(e.target.value)}
+              className="form-input"
+              style={{ paddingLeft: '2.25rem', minHeight: '40px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', paddingBottom: '2px' }}>
+            {['All', 'AB-1', 'AB-2', 'AB-3'].map(b => (
+              <button
+                key={b}
+                onClick={() => setQuickBlock(b)}
+                style={{
+                  padding: '0.4rem 0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: quickBlock === b ? '1px solid var(--amrita-maroon)' : '1px solid var(--border-light)',
+                  backgroundColor: quickBlock === b ? 'var(--amrita-maroon-bg)' : '#ffffff',
+                  color: quickBlock === b ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Room Results Cards */}
+        {filteredQuickRooms.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            No rooms match your search. Click "Full Matrix" to explore all.
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '0.75rem' }}>
+            {filteredQuickRooms.map(room => {
+              const isAvail = room.status === 'available';
+              const isFlag = room.is_flagged || room.status === 'flagged_occupied';
+              return (
+                <div 
+                  key={room.id}
+                  onClick={() => onNavigate('classrooms')}
+                  style={{
+                    backgroundColor: 'var(--bg-surface-alt)',
+                    border: '1px solid var(--border-light)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.75rem 0.95rem',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-main)' }}>
+                      Room {room.room_number}
+                    </span>
+                    <span className={`badge ${isFlag ? 'badge-flagged' : isAvail ? 'badge-available' : 'badge-occupied'}`} style={{ fontSize: '0.675rem' }}>
+                      {isFlag ? 'Flagged' : isAvail ? 'Available' : 'Occupied'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {room.block} • Floor {room.floor} • {room.capacity} Seats
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
     </div>
   );
 }

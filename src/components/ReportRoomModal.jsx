@@ -7,8 +7,7 @@ import {
   Building, 
   FlaskConical, 
   MessageSquare, 
-  Send,
-  ShieldAlert
+  Send
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -67,12 +66,12 @@ export default function ReportRoomModal({
       if (res.is_permanently_flagged) {
         setResultAlert({
           type: 'warning',
-          message: `🚨 REPORT SUBMITTED: Room ${classroom.room_number} has now reached ≥2 reports this week and has been AUTO-FLAGGED PERMANENTLY across CampusSync!`
+          message: `🚨 Room ${classroom.room_number} reached ≥2 reports this week and is now FLAGGED across the campus portal!`
         });
       } else {
         setResultAlert({
           type: 'success',
-          message: `✅ Report recorded for Room ${classroom.room_number}. Thank you for keeping the campus space matrix accurate!`
+          message: `✅ Report recorded for Room ${classroom.room_number}. Thank you!`
         });
       }
 
@@ -81,7 +80,7 @@ export default function ReportRoomModal({
       setTimeout(() => {
         onClose();
         setResultAlert(null);
-      }, 1800);
+      }, 1600);
     } catch (err) {
       setSubmitting(false);
       setResultAlert({
@@ -93,36 +92,23 @@ export default function ReportRoomModal({
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: '600px' }}>
-        {/* Modal Header */}
+      <div className="modal-content">
+        {/* Header */}
         <div style={{
-          padding: '1.25rem 1.5rem',
-          borderBottom: '1px solid var(--border-subtle)',
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid var(--border-light)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(245, 158, 11, 0.05)'
+          backgroundColor: 'var(--amrita-maroon-bg)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '10px',
-              background: 'rgba(245, 158, 11, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <AlertTriangle size={20} color="#f59e0b" />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>
-                Report Room Status: {classroom.room_number}
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {classroom.block} • Floor {classroom.floor} • Capacity {classroom.capacity}
-              </p>
-            </div>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--amrita-maroon)' }}>
+              Report Status: Room {classroom.room_number}
+            </h3>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {classroom.block} • Floor {classroom.floor} • Capacity {classroom.capacity}
+            </p>
           </div>
           <button 
             onClick={onClose} 
@@ -132,130 +118,90 @@ export default function ReportRoomModal({
           </button>
         </div>
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           
-          {/* Notice Box */}
-          <div style={{
-            background: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.25)',
-            borderRadius: '10px',
-            padding: '0.75rem 1rem',
-            fontSize: '0.8rem',
-            color: '#fde68a',
-            display: 'flex',
-            gap: '0.6rem'
-          }}>
-            <ShieldAlert size={18} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
-            <div>
-              <strong>Crowdsource Auto-Flag Rule:</strong> If a room receives <strong>2 or more unscheduled reports in a week</strong>, it is permanently flagged with an amber warning badge to alert all project teams that the room is frequently occupied.
-            </div>
-          </div>
-
-          {/* Status Result Message */}
+          {/* Result Alert */}
           {resultAlert && (
             <div style={{
-              padding: '0.75rem 1rem',
-              borderRadius: '8px',
-              fontSize: '0.825rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              background: resultAlert.type === 'warning' ? 'rgba(245, 158, 11, 0.2)' : resultAlert.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(244, 63, 94, 0.2)',
-              border: `1px solid ${resultAlert.type === 'warning' ? 'rgba(245, 158, 11, 0.4)' : resultAlert.type === 'success' ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'}`,
-              color: resultAlert.type === 'warning' ? '#fde68a' : resultAlert.type === 'success' ? '#6ee7b7' : '#fda4af'
+              padding: '0.65rem 0.85rem',
+              borderRadius: 'var(--radius-md)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              backgroundColor: resultAlert.type === 'warning' ? 'var(--status-flagged-bg)' : resultAlert.type === 'success' ? 'var(--status-available-bg)' : 'var(--status-occupied-bg)',
+              color: resultAlert.type === 'warning' ? 'var(--status-flagged-text)' : resultAlert.type === 'success' ? 'var(--status-available-text)' : 'var(--status-occupied-text)',
+              border: `1px solid ${resultAlert.type === 'warning' ? 'var(--status-flagged-border)' : resultAlert.type === 'success' ? 'var(--status-available-border)' : 'var(--status-occupied-border)'}`
             }}>
-              {resultAlert.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
-              <span>{resultAlert.message}</span>
+              {resultAlert.message}
             </div>
           )}
 
-          {/* Report Type Selector */}
+          {/* Status Options */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-              What is the current ground status of this room?
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+              Ground Status
             </label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setReportType('unscheduled_occupancy')}
                 style={{
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  border: reportType === 'unscheduled_occupancy' ? '2px solid #f59e0b' : '1px solid var(--border-subtle)',
-                  background: reportType === 'unscheduled_occupancy' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  color: reportType === 'unscheduled_occupancy' ? '#fbbf24' : 'var(--text-secondary)',
-                  fontWeight: 600,
+                  padding: '0.65rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: reportType === 'unscheduled_occupancy' ? '2px solid var(--amrita-maroon)' : '1px solid var(--border-light)',
+                  backgroundColor: reportType === 'unscheduled_occupancy' ? 'var(--amrita-maroon-bg)' : '#ffffff',
+                  color: reportType === 'unscheduled_occupancy' ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                  fontWeight: 700,
                   fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
+                  cursor: 'pointer'
                 }}
               >
-                🔴 Occupied by Unscheduled Class / Event
+                🔴 Taken by Extra Batch
               </button>
 
               <button
                 type="button"
                 onClick={() => setReportType('class_cancelled_empty')}
                 style={{
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  border: reportType === 'class_cancelled_empty' ? '2px solid #10b981' : '1px solid var(--border-subtle)',
-                  background: reportType === 'class_cancelled_empty' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                  color: reportType === 'class_cancelled_empty' ? '#34d399' : 'var(--text-secondary)',
-                  fontWeight: 600,
+                  padding: '0.65rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: reportType === 'class_cancelled_empty' ? '2px solid var(--status-available)' : '1px solid var(--border-light)',
+                  backgroundColor: reportType === 'class_cancelled_empty' ? 'var(--status-available-bg)' : '#ffffff',
+                  color: reportType === 'class_cancelled_empty' ? 'var(--status-available-text)' : 'var(--text-secondary)',
+                  fontWeight: 700,
                   fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  textAlign: 'left'
+                  cursor: 'pointer'
                 }}
               >
-                🟢 Class Cancelled / Room is Actually Free!
+                🟢 Class Cancelled / Free
               </button>
             </div>
           </div>
 
-          {/* Occupying Batch & Department */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+          {/* Batch & Dept */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                <Users size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-2px' }} />
-                Occupying Batch / Class
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+                Occupying Batch
               </label>
               <input
                 type="text"
-                placeholder="e.g. CSE-B 3rd Year, AI-DS 2024-28"
+                placeholder="e.g. CSE-B 3rd Yr, ECE-A"
                 value={reportedBatch}
                 onChange={(e) => setReportedBatch(e.target.value)}
                 required={reportType === 'unscheduled_occupancy'}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.85rem',
-                  background: 'rgba(0, 0, 0, 0.35)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.85rem'
-                }}
+                className="form-input"
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                <Building size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-2px' }} />
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
                 Department
               </label>
               <select
                 value={reportedDepartment}
                 onChange={(e) => setReportedDepartment(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.85rem',
-                  background: '#111827',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.85rem'
-                }}
+                className="form-select"
               >
                 {departments.map((dept, idx) => (
                   <option key={idx} value={dept}>{dept}</option>
@@ -264,127 +210,51 @@ export default function ReportRoomModal({
             </div>
           </div>
 
-          {/* Lab Class Toggle & Occupancy Level */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '8px',
-              padding: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.825rem', fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <FlaskConical size={15} color="#38bdf8" />
-                  <span>Is this a Lab Class?</span>
-                </div>
-                <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>Using lab PCs / hardware</div>
-              </div>
+          {/* Lab Checkbox & Level */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minHeight: '42px', padding: '0 0.5rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-md)' }}>
               <input
                 type="checkbox"
+                id="is_lab_student"
                 checked={isLabClass}
                 onChange={(e) => setIsLabClass(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#4f46e5' }}
+                style={{ width: '18px', height: '18px', accentColor: 'var(--amrita-maroon)' }}
               />
+              <label htmlFor="is_lab_student" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer' }}>
+                Is this a Lab Class?
+              </label>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                Occupancy Level
-              </label>
               <select
                 value={occupancyLevel}
                 onChange={(e) => setOccupancyLevel(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.65rem 0.85rem',
-                  background: '#111827',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.85rem'
-                }}
+                className="form-select"
               >
-                <option value="Full">Full (No empty benches)</option>
-                <option value="Moderate">Moderate (50% Occupied)</option>
-                <option value="Sparse">Sparse / Few students</option>
+                <option value="Full">Full (No empty seats)</option>
+                <option value="Moderate">Moderate (Half full)</option>
                 <option value="Empty">Completely Empty</option>
               </select>
             </div>
           </div>
 
-          {/* Purpose / Remarks */}
+          {/* Purpose */}
           <div>
-            <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-              <MessageSquare size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: '-2px' }} />
-              Purpose / Reason for Occupancy
+            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
+              Purpose / Reason
             </label>
             <input
               type="text"
-              placeholder="e.g. Extra Remedial Practical, Hackathon Mentoring, Club Meeting"
+              placeholder="e.g. Remedial Test, Project Prep, Extra Lecture"
               value={purpose}
               onChange={(e) => setPurpose(e.target.value)}
               required={reportType === 'unscheduled_occupancy'}
-              style={{
-                width: '100%',
-                padding: '0.65rem 0.85rem',
-                background: 'rgba(0, 0, 0, 0.35)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '0.85rem'
-              }}
+              className="form-input"
             />
           </div>
 
-          {/* Reporter Optional Details */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                Your Name (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="Anonymous if left blank"
-                value={reporterName}
-                onChange={(e) => setReporterName(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 0.75rem',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.825rem'
-                }}
-              />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.35rem' }}>
-                Roll Number (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. CB.EN.U4CSE..."
-                value={reporterRollNo}
-                onChange={(e) => setReporterRollNo(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '0.55rem 0.75rem',
-                  background: 'rgba(0, 0, 0, 0.25)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '0.825rem'
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Submit Actions */}
-          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
             <button
               type="button"
               onClick={onClose}
@@ -396,11 +266,11 @@ export default function ReportRoomModal({
             <button
               type="submit"
               disabled={submitting}
-              className="btn-primary"
-              style={{ flex: 2, background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' }}
+              className="btn-amrita"
+              style={{ flex: 2 }}
             >
-              <Send size={16} />
-              <span>{submitting ? 'Submitting Report...' : 'Publish Ground Report'}</span>
+              <Send size={15} />
+              <span>{submitting ? 'Submitting...' : 'Submit Report'}</span>
             </button>
           </div>
 
