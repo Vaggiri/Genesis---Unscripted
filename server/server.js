@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
@@ -245,7 +246,6 @@ const state = {
   ],
 
   timetables: [
-    // AB1-101
     {
       id: 'tt-1',
       room_id: 'AB1-101',
@@ -288,8 +288,6 @@ const state = {
       is_lab: false,
       faculty_name: 'Dr. V. Priya'
     },
-
-    // AB1-204 (Occupied on timetable afternoon)
     {
       id: 'tt-4',
       room_id: 'AB1-204',
@@ -304,8 +302,6 @@ const state = {
       is_lab: true,
       faculty_name: 'Dr. M. Suresh'
     },
-
-    // AB3-305 (AI Lab)
     {
       id: 'tt-5',
       room_id: 'AB3-305',
@@ -334,8 +330,6 @@ const state = {
       is_lab: false,
       faculty_name: 'Dr. Deepa S.'
     },
-
-    // AB2-210 (IoT Lab)
     {
       id: 'tt-7',
       room_id: 'AB2-210',
@@ -405,18 +399,15 @@ const state = {
 // HELPER: Compute Live Status for a Room given day and time
 // -----------------------------------------------------------------------------
 function computeRoomStatus(room, day, timeStr, reports, timetables) {
-  // Check active reports for this room
   const roomReports = reports.filter(r => r.room_id === room.id && r.status === 'active');
   const emptyReport = roomReports.find(r => r.report_type === 'class_cancelled_empty');
   const unscheduledReports = roomReports.filter(r => r.report_type === 'unscheduled_occupancy' || r.report_type === 'event_occupied');
 
-  // Check scheduled timetable slot
   const roomTimetables = timetables.filter(t => t.room_id === room.id && t.day_of_week === day);
   const currentSlot = roomTimetables.find(t => {
     return timeStr >= t.start_time && timeStr <= t.end_time;
   });
 
-  // Next slot upcoming today
   const upcomingSlots = roomTimetables
     .filter(t => t.start_time > timeStr)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
@@ -477,11 +468,12 @@ function computeRoomStatus(room, day, timeStr, reports, timetables) {
 }
 
 // -----------------------------------------------------------------------------
-// API ROUTES
+// EXPRESS ROUTER (Mounted on both /api and / for seamless Vercel compatibility)
 // -----------------------------------------------------------------------------
+const router = express.Router();
 
 // 1. Health & Config Status
-app.get('/api/health', (req, res) => {
+router.get('/health', (req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -493,7 +485,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // 2. Settings
-app.get('/api/settings', async (req, res) => {
+router.get('/settings', async (req, res) => {
   if (supabase) {
     const { data, error } = await supabase.from('portal_settings').select('*').single();
     if (!error && data) return res.json(data);
@@ -501,7 +493,7 @@ app.get('/api/settings', async (req, res) => {
   res.json(state.settings);
 });
 
-app.put('/api/settings', async (req, res) => {
+router.put('/settings', async (req, res) => {
   state.settings = { ...state.settings, ...req.body, updated_at: new Date().toISOString() };
   if (supabase) {
     await supabase.from('portal_settings').upsert(state.settings);
@@ -510,7 +502,7 @@ app.put('/api/settings', async (req, res) => {
 });
 
 // 3. Dynamic Portal Pages (Admin CMS)
-app.get('/api/pages', async (req, res) => {
+router.get('/pages', async (req, res) => {
   if (supabase) {
     const { data, error } = await supabase.from('portal_pages').select('*').order('display_order', { ascending: true });
     if (!error && data && data.length > 0) return res.json(data);
@@ -518,7 +510,7 @@ app.get('/api/pages', async (req, res) => {
   res.json(state.pages);
 });
 
-app.put('/api/pages/:slug', async (req, res) => {
+router.put('/pages/:slug', async (req, res) => {
   const { slug } = req.params;
   const idx = state.pages.findIndex(p => p.slug === slug);
   if (idx !== -1) {
@@ -532,13 +524,11 @@ app.put('/api/pages/:slug', async (req, res) => {
 });
 
 // 4. Classrooms with Live Occupancy Calculation
-app.get('/api/classrooms', async (req, res) => {
-  // Query parameters can simulate another time (e.g., for demo testing)
+router.get('/classrooms', async (req, res) => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const now = new Date();
   const day = req.query.day || days[now.getDay()] || 'Monday';
   
-  // Format current time as HH:MM
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const timeStr = req.query.time || `${hours}:${minutes}`;
@@ -573,7 +563,7 @@ app.get('/api/classrooms', async (req, res) => {
 });
 
 // 5. Admin Classroom CRUD
-app.post('/api/admin/classrooms', async (req, res) => {
+router.post('/admin/classrooms', async (req, res) => {
   const newRoom = {
     id: req.body.id || `${req.body.block.replace(/[^A-Za-z0-9]/g, '')}-${req.body.room_number}`,
     room_number: req.body.room_number,
@@ -606,7 +596,7 @@ app.post('/api/admin/classrooms', async (req, res) => {
   res.json({ success: true, classroom: newRoom });
 });
 
-app.delete('/api/admin/classrooms/:id', async (req, res) => {
+router.delete('/admin/classrooms/:id', async (req, res) => {
   const { id } = req.params;
   state.classrooms = state.classrooms.filter(r => r.id !== id);
   state.timetables = state.timetables.filter(t => t.room_id !== id);
@@ -618,8 +608,7 @@ app.delete('/api/admin/classrooms/:id', async (req, res) => {
   res.json({ success: true, deletedId: id });
 });
 
-// Admin unflag / clear flags
-app.post('/api/admin/classrooms/:id/unflag', async (req, res) => {
+router.post('/admin/classrooms/:id/unflag', async (req, res) => {
   const { id } = req.params;
   const room = state.classrooms.find(r => r.id === id);
   if (room) {
@@ -631,7 +620,6 @@ app.post('/api/admin/classrooms/:id/unflag', async (req, res) => {
     room.flagged_purpose = null;
     room.last_flagged_at = null;
 
-    // also mark reports as resolved
     state.reports.forEach(rep => {
       if (rep.room_id === id) rep.status = 'resolved';
     });
@@ -655,7 +643,7 @@ app.post('/api/admin/classrooms/:id/unflag', async (req, res) => {
 });
 
 // 6. Timetables CRUD
-app.get('/api/timetables', (req, res) => {
+router.get('/timetables', (req, res) => {
   const { roomId } = req.query;
   if (roomId) {
     return res.json(state.timetables.filter(t => t.room_id === roomId));
@@ -663,7 +651,7 @@ app.get('/api/timetables', (req, res) => {
   res.json(state.timetables);
 });
 
-app.post('/api/admin/timetables', async (req, res) => {
+router.post('/admin/timetables', async (req, res) => {
   const newEntry = {
     id: req.body.id || `tt-${Date.now()}`,
     room_id: req.body.room_id,
@@ -693,7 +681,7 @@ app.post('/api/admin/timetables', async (req, res) => {
   res.json({ success: true, timetable: newEntry });
 });
 
-app.delete('/api/admin/timetables/:id', async (req, res) => {
+router.delete('/admin/timetables/:id', async (req, res) => {
   const { id } = req.params;
   state.timetables = state.timetables.filter(t => t.id !== id);
   if (supabase) {
@@ -703,11 +691,11 @@ app.delete('/api/admin/timetables/:id', async (req, res) => {
 });
 
 // 7. Crowdsourced Occupancy Reports & Dynamic Flagging
-app.get('/api/reports', (req, res) => {
+router.get('/reports', (req, res) => {
   res.json(state.reports);
 });
 
-app.post('/api/reports', async (req, res) => {
+router.post('/reports', async (req, res) => {
   const {
     room_id,
     report_type = 'unscheduled_occupancy',
@@ -743,8 +731,6 @@ app.post('/api/reports', async (req, res) => {
 
   state.reports.unshift(newReport);
 
-  // Core Flagging Rule:
-  // If reported >= 2 times in a week (or >= threshold), PERMANENTLY flag the room!
   const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const recentReportsForRoom = state.reports.filter(r => 
     r.room_id === room_id && 
@@ -799,10 +785,9 @@ app.post('/api/reports', async (req, res) => {
   });
 });
 
-// Admin resolve or dismiss report
-app.post('/api/admin/reports/:id/resolve', async (req, res) => {
+router.post('/admin/reports/:id/resolve', async (req, res) => {
   const { id } = req.params;
-  const { action = 'resolve' } = req.body; // 'resolve' or 'dismiss'
+  const { action = 'resolve' } = req.body;
   const rep = state.reports.find(r => r.id === id);
   if (rep) {
     rep.status = action === 'dismiss' ? 'dismissed' : 'resolved';
@@ -814,7 +799,16 @@ app.post('/api/admin/reports/:id/resolve', async (req, res) => {
   res.status(404).json({ error: 'Report not found' });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 CampusSync Node.js Backend Server running on http://localhost:${PORT}`);
-});
+// Mount router on BOTH '/api' AND '/' for zero-friction Vercel & local development
+app.use('/api', router);
+app.use('/', router);
+
+// Start standalone server only when run directly (not when imported as a serverless function)
+const isDirectExecution = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isDirectExecution || (!process.env.VERCEL && process.env.NODE_ENV !== 'production')) {
+  app.listen(PORT, () => {
+    console.log(`🚀 CampusSync Node.js Backend Server running on http://localhost:${PORT}`);
+  });
+}
+
+export default app;
