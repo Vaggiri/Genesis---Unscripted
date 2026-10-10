@@ -1,28 +1,16 @@
-// Centralized Authentication Service for Campus Setu
+// Centralized Authentication Service for Amrita InnovateX
 export const DEMO_USERS = {
   student: {
     id: 'usr-student-1',
     role: 'student',
-    name: 'Adithya K.',
-    roll_no: 'CB.EN.U4CSE23012',
-    email: 'adithya@cb.students.amrita.edu',
-    department: 'Computer Science & Engineering',
-    batch: 'B.Tech CSE-B (2023-2027)',
+    name: 'Akash Kumar',
+    roll_no: 'CB.EN.U4AIE23045',
+    email: 'akash@cb.students.amrita.edu',
+    department: 'Artificial Intelligence & Robotics',
+    batch: 'B.Tech AI & Data Science (2023-2027)',
     semester: 'Semester 6',
-    hostel: 'Hostel D, Room 312',
-    attendance: '88.4%',
-    cgpa: '8.92'
-  },
-  parent: {
-    id: 'usr-parent-1',
-    role: 'parent',
-    name: 'Lakshmi Narayanan',
-    phone: '+91 98401 23456',
-    email: 'lakshmi.parent@gmail.com',
-    ward_name: 'Adithya K.',
-    ward_roll: 'CB.EN.U4CSE23012',
-    ward_dept: 'Computer Science & Engineering',
-    ward_hostel: 'Hostel D, Room 312'
+    attendance: '91.4%',
+    cgpa: '9.08'
   },
   faculty: {
     id: 'usr-faculty-1',
@@ -32,23 +20,6 @@ export const DEMO_USERS = {
     email: 'k_swaminathan@cb.amrita.edu',
     department: 'Computer Science & Engineering',
     designation: 'Associate Professor & Lab In-Charge'
-  },
-  warden: {
-    id: 'usr-warden-1',
-    role: 'warden',
-    name: 'Murugesh R.',
-    emp_id: 'AMR-WRD-044',
-    email: 'warden_dblock@cb.amrita.edu',
-    hostel_block: 'D-Block (Senior Boys Hostel)',
-    phone: '+91 94432 87654'
-  },
-  workers_manager: {
-    id: 'usr-worker-1',
-    role: 'workers_manager',
-    name: 'Ramesh Kumar',
-    emp_id: 'AMR-MTN-301',
-    email: 'maintenance_mgr@cb.amrita.edu',
-    department: 'Campus Facilities & Lab Maintenance'
   },
   admin: {
     id: 'usr-admin-1',
@@ -84,39 +55,22 @@ export const saveRegisteredUsers = (users) => {
 };
 
 // Expected credentials reference for quick review / help
+// Expected credentials reference for quick review / help
 export const ROLE_CREDENTIALS = {
   student: {
-    label: 'Student',
-    exampleId: 'CB.EN.U4CSE23012',
+    label: 'Student Innovator',
+    exampleId: 'CB.EN.U4AIE23045',
     examplePass: 'student123',
-    hint: 'Starts with CB.EN.U4... (e.g. CB.EN.U4CSE23012)'
-  },
-  parent: {
-    label: 'Parent',
-    exampleId: '9840123456',
-    examplePass: 'parent123',
-    hint: '10-digit mobile number (e.g. 9840123456)'
+    hint: 'Amrita Roll No (e.g. CB.EN.U4AIE23045)'
   },
   faculty: {
-    label: 'Faculty',
+    label: 'Faculty & Lab In-Charge',
     exampleId: 'AMR-FAC-209',
     examplePass: 'faculty123',
     hint: 'Faculty ID (e.g. AMR-FAC-209)'
   },
-  warden: {
-    label: 'Warden',
-    exampleId: 'AMR-WRD-044',
-    examplePass: 'warden123',
-    hint: 'Warden ID (e.g. AMR-WRD-044)'
-  },
-  workers_manager: {
-    label: 'Workers Mgr',
-    exampleId: 'AMR-MTN-301',
-    examplePass: 'worker123',
-    hint: 'Maintenance ID (e.g. AMR-MTN-301)'
-  },
   admin: {
-    label: 'Admin',
+    label: 'Portal Admin',
     exampleId: 'admin',
     examplePass: 'admin123',
     hint: 'Admin username: admin'
@@ -126,7 +80,7 @@ export const ROLE_CREDENTIALS = {
 /**
  * Automatically detects the campus role based on the entered username / ID / Roll Number
  * @param {string} identifier 
- * @returns {string|null} role ('student' | 'parent' | 'faculty' | 'warden' | 'workers_manager' | 'admin' | null)
+ * @returns {string|null} role ('student' | 'faculty' | 'admin' | null)
  */
 export const detectRoleFromIdentifier = (identifier) => {
   if (!identifier) return null;
@@ -159,18 +113,13 @@ export const detectRoleFromIdentifier = (identifier) => {
     lower.includes('u4') ||
     lower.includes('student') || 
     lower.includes('@cb.students.amrita.edu') ||
+    lower === 'akash' ||
     lower === 'adithya'
   ) {
     return 'student';
   }
 
-  // 3. Parent: 10-digit mobile number or 'parent' keywords
-  const isPhone = /^[6-9]\d{9}$/.test(lower) || /^\+?91[6-9]\d{9}$/.test(lower) || /^[0-9]{10}$/.test(lower);
-  if (isPhone || lower.includes('parent') || lower === 'lakshmi') {
-    return 'parent';
-  }
-
-  // 4. Faculty: 'AMR-FAC-...', 'FAC-...', or faculty keywords
+  // 3. Faculty: 'AMR-FAC-...', 'FAC-...', or faculty keywords
   if (
     lower.startsWith('amr-fac') || 
     lower.startsWith('fac-') || 
@@ -179,28 +128,6 @@ export const detectRoleFromIdentifier = (identifier) => {
     lower === 'swaminathan'
   ) {
     return 'faculty';
-  }
-
-  // 5. Warden: 'AMR-WRD-...', 'WRD-...', or warden keywords
-  if (
-    lower.startsWith('amr-wrd') || 
-    lower.startsWith('wrd-') || 
-    lower.includes('warden') || 
-    lower === 'murugesh'
-  ) {
-    return 'warden';
-  }
-
-  // 6. Workers Manager: 'AMR-MTN-...', 'MTN-...', 'WRK-...'
-  if (
-    lower.startsWith('amr-mtn') || 
-    lower.startsWith('mtn-') || 
-    lower.startsWith('wrk-') || 
-    lower.includes('maintenance') || 
-    lower.includes('worker') || 
-    lower === 'ramesh'
-  ) {
-    return 'workers_manager';
   }
 
   return null;
@@ -250,7 +177,7 @@ export const loginWithCredentials = (identifier, password) => {
   if (!role) {
     return { 
       success: false, 
-      error: 'Unrecognized ID format. For students, enter roll number (e.g. CB.EN.U4CSE23012). For admin, enter "admin".' 
+      error: 'Unrecognized credential format. Enter Student Roll Number (CB.EN.U4...), Faculty ID (AMR-FAC-...), or "admin".' 
     };
   }
 
@@ -262,23 +189,14 @@ export const loginWithCredentials = (identifier, password) => {
     isPasswordValid = cleanPass === 'admin123' || validUniversal;
   } else if (role === 'student') {
     isPasswordValid = cleanPass === 'student123' || validUniversal;
-  } else if (role === 'parent') {
-    isPasswordValid = cleanPass === 'parent123' || validUniversal;
   } else if (role === 'faculty') {
     isPasswordValid = cleanPass === 'faculty123' || validUniversal;
-  } else if (role === 'warden') {
-    isPasswordValid = cleanPass === 'warden123' || validUniversal;
-  } else if (role === 'workers_manager') {
-    isPasswordValid = cleanPass === 'worker123' || validUniversal;
   }
 
   if (!isPasswordValid) {
     const roleTitles = {
-      student: 'Student',
-      parent: 'Parent',
-      faculty: 'Faculty',
-      warden: 'Warden',
-      workers_manager: 'Workers Manager',
+      student: 'Student Innovator',
+      faculty: 'Faculty & Lab In-Charge',
       admin: 'Administrator'
     };
     return { 
@@ -291,8 +209,6 @@ export const loginWithCredentials = (identifier, password) => {
   const baseProfile = { ...DEMO_USERS[role] };
   if (role === 'student' && lowerId.startsWith('cb.en')) {
     baseProfile.roll_no = cleanId.toUpperCase();
-  } else if (role === 'parent' && /^[0-9]{10}$/.test(lowerId)) {
-    baseProfile.phone = `+91 ${lowerId.slice(0, 5)} ${lowerId.slice(5)}`;
   } else if (role === 'faculty' && lowerId.startsWith('amr-fac')) {
     baseProfile.emp_id = cleanId.toUpperCase();
   }

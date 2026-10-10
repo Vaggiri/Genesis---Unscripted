@@ -27,10 +27,7 @@ export default function Navbar({
   const getRoleIcon = (role) => {
     switch (role) {
       case 'student': return GraduationCap;
-      case 'parent': return Users;
       case 'faculty': return BookOpen;
-      case 'warden': return ShieldCheck;
-      case 'workers_manager': return Wrench;
       case 'admin': return Lock;
       default: return User;
     }

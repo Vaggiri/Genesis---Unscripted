@@ -47,12 +47,9 @@ export default function LoginPage({ onLoginSuccess }) {
 
   const getRoleDetails = (role) => {
     switch (role) {
-      case 'student': return { label: 'Student', icon: GraduationCap, color: '#15803d', bg: '#f0fdf4' };
-      case 'parent': return { label: 'Parent', icon: Users, color: '#0369a1', bg: '#f0f9ff' };
-      case 'faculty': return { label: 'Faculty', icon: BookOpen, color: '#7c3aed', bg: '#f5f3ff' };
-      case 'warden': return { label: 'Hostel Warden', icon: ShieldCheck, color: '#c2410c', bg: '#fff7ed' };
-      case 'workers_manager': return { label: 'Workers Manager', icon: Wrench, color: '#b45309', bg: '#fefce8' };
-      case 'admin': return { label: 'Administrator', icon: Lock, color: '#be123c', bg: '#fff1f2' };
+      case 'student': return { label: 'Student Innovator', icon: GraduationCap, color: '#15803d', bg: '#f0fdf4' };
+      case 'faculty': return { label: 'Faculty & Lab In-Charge', icon: BookOpen, color: '#7c3aed', bg: '#f5f3ff' };
+      case 'admin': return { label: 'Portal Administrator', icon: Lock, color: '#be123c', bg: '#fff1f2' };
       default: return null;
     }
   };
@@ -326,7 +323,7 @@ export default function LoginPage({ onLoginSuccess }) {
                   autoFocus
                 />
                 <span style={{ display: 'block', fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Auto-redirects to respective portal (Student, Parent, Faculty, Warden, Worker, Admin).
+                  Auto-redirects based on credentials (Student Innovator, Faculty In-Charge, Admin).
                 </span>
               </div>
 
@@ -501,14 +498,12 @@ export default function LoginPage({ onLoginSuccess }) {
 
               <div>
                 <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
-                  {signupRole === 'student' ? 'Student Roll Number' : signupRole === 'parent' ? 'Parent Mobile Number' : 'Employee ID'} <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
+                  {signupRole === 'student' ? 'Student Roll Number' : 'Faculty Employee ID'} <span style={{ color: 'var(--amrita-maroon)' }}>*</span>
                 </label>
                 <input
                   type="text"
                   placeholder={
-                    signupRole === 'student' ? 'e.g. CB.EN.U4CSE23999' :
-                    signupRole === 'parent' ? 'e.g. 9840123456' :
-                    'e.g. AMR-FAC-209'
+                    signupRole === 'student' ? 'e.g. CB.EN.U4AIE23045' : 'e.g. AMR-FAC-209'
                   }
                   value={signupId}
                   onChange={(e) => setSignupId(e.target.value)}

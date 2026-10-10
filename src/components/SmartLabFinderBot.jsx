@@ -15,6 +15,7 @@ import {
   RefreshCw,
   Zap
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { INNOVATION_LABS } from '../services/labsData';
 
 export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
@@ -325,18 +326,24 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
                   </div>
                 )}
 
-                <div style={{
-                  padding: '0.75rem 0.95rem',
-                  borderRadius: isBot ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
-                  backgroundColor: isBot ? '#f8fafc' : 'var(--amrita-maroon)',
-                  color: isBot ? 'var(--text-main)' : '#ffffff',
-                  fontSize: '0.825rem',
-                  lineHeight: 1.5,
-                  border: isBot ? '1px solid var(--border-light)' : 'none',
-                  whiteSpace: 'pre-line',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
-                }}>
-                  {m.text}
+                <div 
+                  className={isBot ? 'bot-markdown-content' : ''}
+                  style={{
+                    padding: '0.75rem 1rem',
+                    borderRadius: isBot ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
+                    backgroundColor: isBot ? '#f8fafc' : 'var(--amrita-maroon)',
+                    color: isBot ? 'var(--text-main)' : '#ffffff',
+                    fontSize: '0.85rem',
+                    lineHeight: 1.55,
+                    border: isBot ? '1px solid var(--border-light)' : 'none',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  {isBot ? (
+                    <ReactMarkdown>{m.text}</ReactMarkdown>
+                  ) : (
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{m.text}</span>
+                  )}
                 </div>
               </div>
             );

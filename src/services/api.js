@@ -82,11 +82,11 @@ export const api = {
           is_enabled: true
         },
         {
-          slug: 'parent-epass',
-          title: 'Parent Hostel Visit & Gate E-Pass',
-          subtitle: 'Pre-clearance QR fast lane, warden 1-click approvals, and secure digital gate logs',
-          badge: 'E-Governance',
-          icon_name: 'ShieldCheck',
+          slug: 'facility-booking',
+          title: 'Innovation Facility & Lab Slot Booking',
+          subtitle: 'Conversational machine matching, drawer stock verification, and slot reservation',
+          badge: 'AI Allocation',
+          icon_name: 'Cpu',
           is_enabled: true
         },
         {

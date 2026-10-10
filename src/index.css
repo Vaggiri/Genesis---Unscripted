@@ -347,43 +347,33 @@ button, input, select, textarea {
   box-shadow: 0 0 0 3px rgba(164, 18, 63, 0.15);
 }
 
-/* Official Amrita Portal Angled Ribbon Tile Grid System */
-.amrita-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem 1.15rem;
-  margin-bottom: 1.5rem;
-  width: 100%;
-}
-
-@media (max-width: 1100px) {
 /* Modern Segmented Navigation Bar (Desktop & Tablet) */
 .nav-segmented-bar {
   display: flex;
   align-items: center;
   background-color: #ffffff;
   border: 1px solid var(--border-light);
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 5px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
   margin-bottom: 1.25rem;
-  gap: 6px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  gap: 4px;
+  width: 100%;
 }
 
 .nav-segment-item {
   flex: 1;
+  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 9px 16px;
-  border-radius: 10px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.825rem;
+  font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
@@ -420,6 +410,44 @@ button, input, select, textarea {
 .nav-segment-item.active .nav-counter-pill {
   background-color: rgba(255, 255, 255, 0.25);
   color: #ffffff;
+}
+
+/* Chat Message Markdown Styling */
+.bot-markdown-content p {
+  margin: 0 0 0.5rem 0;
+}
+
+.bot-markdown-content p:last-child {
+  margin-bottom: 0;
+}
+
+.bot-markdown-content strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bot-markdown-content em {
+  font-style: italic;
+  color: #334155;
+}
+
+.bot-markdown-content ul, .bot-markdown-content ol {
+  margin: 0.4rem 0 0.5rem 1.25rem;
+  padding: 0;
+}
+
+.bot-markdown-content li {
+  margin-bottom: 0.25rem;
+  line-height: 1.45;
+}
+
+.bot-markdown-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.785rem;
+  background-color: #e2e8f0;
+  color: #0f172a;
+  padding: 1px 5px;
+  border-radius: 4px;
 }
 
 /* Native Mobile Bottom Navigation Bar (Shown ONLY on Mobile <= 768px) */
