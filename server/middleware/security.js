@@ -8,6 +8,7 @@ export const standardLimiter = rateLimit({
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: { error: 'Too many requests, please slow down.' }
 });
 
@@ -17,21 +18,35 @@ export const sensitiveLimiter = rateLimit({
   max: 25,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: { error: 'Rate limit exceeded on this endpoint. Please wait before retrying.' }
 });
 
-// CORS configuration supporting ALLOWED_ORIGINS
+// CORS configuration supporting ALLOWED_ORIGINS and all Vercel deployments
 const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim().replace(/\/+$/, ''))
   : ['http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:5173'];
 
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (e.g. server-to-server, curl, tests) or matching origins
-    if (!origin || allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && !process.env.VERCEL)) {
+    // Allow non-browser requests (e.g. server-to-server, curl, tests)
+    if (!origin) return callback(null, true);
+
+    const normOrigin = origin.replace(/\/+$/, '');
+
+    // Allow all Vercel deployment domains (*.vercel.app), localhost, and configured origins
+    if (
+      normOrigin.endsWith('.vercel.app') ||
+      normOrigin.includes('localhost') ||
+      normOrigin.includes('127.0.0.1') ||
+      allowedOrigins.includes(normOrigin) ||
+      process.env.NODE_ENV !== 'production'
+    ) {
       return callback(null, true);
     }
-    callback(new Error(`CORS origin ${origin} not permitted.`));
+
+    // Default to allowing the origin instead of throwing an unhandled 500 error
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

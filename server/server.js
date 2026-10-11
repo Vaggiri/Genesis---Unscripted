@@ -253,6 +253,14 @@ router.use('/admin', adminRouter);
 app.use('/api', router);
 app.use('/', router);
 
+// Global Error Handler: Catches any unhandled error and returns clean JSON instead of crashing
+app.use((err, req, res, _next) => {
+  console.error('Unhandled server error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error'
+  });
+});
+
 // Direct execution listener
 const isDirectExecution = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isDirectExecution || (!process.env.VERCEL && process.env.NODE_ENV !== 'production')) {

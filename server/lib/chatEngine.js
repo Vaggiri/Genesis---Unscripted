@@ -15,13 +15,36 @@ import { findEarliestSlot } from './scheduler.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load templates
-const templates = {
-  en: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'en.json'), 'utf8')),
-  ta: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ta.json'), 'utf8')),
-  hi: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'hi.json'), 'utf8')),
-  ml: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ml.json'), 'utf8'))
+// Load templates with in-memory fallback for bundled serverless runtimes
+const defaultTemplates = {
+  en: {
+    greeting: "Hello! I am Amrita Yukti, your campus innovation and space assistant. How can I help you today?",
+    help: "I can help you check component drawer stock, find lab equipment, schedule workstation & 3D print slots, verify free lecture halls, or connect you with lab in-charges.",
+    inventory_found: "Found {{name}} in {{lab}}: {{quantity}} units available at {{location}} (Last updated: {{updatedAt}}).",
+    inventory_not_found: "We currently do not have \"{{query}}\" listed in the drawer inventory. You can request stock from the lab in-charge.",
+    lab_info: "{{name}} is located at {{block}}, Floor {{floor}} (Capacity: {{capacity}} students). In-charge: {{incharge}}.",
+    labs_list: "Available campus innovation hubs:\n• AI & High Performance Computing Lab (AB-3, Floor 3)\n• Digital Fabrication Hub (AB-1, Floor 1)\n• IoT, Robotics & Automation Centre (AB-2, Floor 2)\n• PCB Prototyping & EDA Fab (AB-1, Floor 2)\n• Mechanical Workshop (AB-2, Floor 0)",
+    slot_suggested: "Recommended slot for {{resourceName}} in {{labName}}: {{start}} to {{end}}.",
+    free_rooms: "Currently available rooms on campus: {{rooms}}.",
+    human_handoff: "For immediate in-person assistance, contact:\n• FabLab In-charge: Er. Rajesh V. (FAB-01)\n• AI & HPC Lab: Dr. K. Swaminathan (AMR-FAC-209)\n• Campus Helpdesk: Ext 4022",
+    unknown: "I am not certain about that request. You can ask me to check components (e.g. 'do you have 10k resistors'), book a lab slot, or type 'help'."
+  },
+  ta: {},
+  hi: {},
+  ml: {}
 };
+
+let templates = defaultTemplates;
+try {
+  templates = {
+    en: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'en.json'), 'utf8')),
+    ta: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ta.json'), 'utf8')),
+    hi: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'hi.json'), 'utf8')),
+    ml: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ml.json'), 'utf8'))
+  };
+} catch (err) {
+  console.warn('Notice: Using embedded chat templates in serverless environment:', err.message);
+}
 
 /**
  * Detect language from text via Unicode blocks.
