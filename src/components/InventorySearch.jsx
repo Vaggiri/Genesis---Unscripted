@@ -59,10 +59,11 @@ export default function InventorySearch() {
     return Array.from(set);
   }, [items]);
 
+  const thirtyDaysAgo = React.useMemo(() => Date.now() - 30 * 24 * 60 * 60 * 1000, []);
+
   const checkIsStale = (dateStr) => {
     if (!dateStr) return false;
     const itemDate = new Date(dateStr).getTime();
-    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     return itemDate < thirtyDaysAgo;
   };
 
@@ -72,7 +73,7 @@ export default function InventorySearch() {
       <div className="card-amrita p-6 space-y-4">
         <div>
           <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Package className="w-6 h-6 text-amrita-maroon" />
+            <Package size={22} className="text-amrita-maroon" />
             Component & Drawer Stock Live Radar
           </h3>
           <p className="text-sm text-gray-500">
@@ -82,7 +83,7 @@ export default function InventorySearch() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <div className="md:col-span-2 relative">
-            <Search className="w-5 h-5 absolute left-3.5 top-3 text-gray-400" />
+            <Search size={18} className="absolute left-3.5 top-3 text-gray-400" style={{ pointerEvents: 'none' }} />
             <input
               type="text"
               id="inventory-search-input"
@@ -90,6 +91,7 @@ export default function InventorySearch() {
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search components (e.g. '10k resistor', 'ESP32', 'PLA spool', 'FR4')..."
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-amrita-maroon text-sm font-medium"
+              style={{ minHeight: '42px', backgroundColor: '#ffffff', color: 'var(--text-main)' }}
             />
           </div>
 
@@ -98,6 +100,7 @@ export default function InventorySearch() {
               value={selectedLab}
               onChange={(e) => setSelectedLab(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-amrita-maroon"
+              style={{ minHeight: '42px', cursor: 'pointer' }}
             >
               <option value="all">All Innovation Labs</option>
               <option value="lab-pcb-eda">PCB Prototyping & EDA Fab</option>
@@ -113,6 +116,7 @@ export default function InventorySearch() {
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-300 text-sm font-semibold bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-amrita-maroon"
+              style={{ minHeight: '42px', cursor: 'pointer' }}
             >
               <option value="all">All Categories</option>
               {categories.map(c => <option key={c} value={c}>{c}</option>)}

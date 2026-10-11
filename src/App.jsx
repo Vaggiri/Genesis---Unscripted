@@ -5,14 +5,16 @@ import StudentPortal from './components/StudentPortal';
 import FacultyPortal from './components/FacultyPortal';
 import LabInchargePortal from './components/LabInchargePortal';
 import AdminPortal from './components/AdminPortal';
-import SupabaseConfigModal from './components/SupabaseConfigModal';
+import NotificationsView from './components/NotificationsView';
 import { useAuth } from './context/AuthContext';
+import { useNotifications } from './context/NotificationContext';
 import { useBookings } from './hooks/useBookings';
 import { api } from './services/api';
 
 export default function App() {
   const { user, profile, role, loading: authLoading, signOut } = useAuth();
-  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+  const { unreadCount, addNotification } = useNotifications();
+  const [showNotificationsModal, setShowNotificationsModal] = useState(false);
   const [toastNotification, setToastNotification] = useState(null);
 
   // Synthesized notification chime (zero audio dependencies)
@@ -32,7 +34,7 @@ export default function App() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.36);
-    } catch (_e) {
+    } catch {
       // AudioContext may be restricted before first interaction
     }
   };
@@ -41,12 +43,19 @@ export default function App() {
   const {
     bookings,
     createBooking,
-    updateBookingStatus,
-    refresh: refreshBookings
+    updateBookingStatus
   } = useBookings({
+    enabled: Boolean(user),
     onRealtimeEvent: (payload) => {
       if (payload.eventType === 'INSERT') {
         playNotificationChime('high');
+        addNotification({
+          title: 'New Lab Booking Event',
+          message: `Booking created: ${payload.new?.purpose || 'Equipment Reservation'} (${payload.new?.room_id || 'Room'})`,
+          type: 'request',
+          category: 'booking',
+          target_roles: ['student', 'faculty', 'lab_incharge', 'admin']
+        });
         setToastNotification({
           id: `toast-${Date.now()}`,
           type: 'new_request',
@@ -54,11 +63,19 @@ export default function App() {
           message: `Booking created: ${payload.new?.purpose || 'Equipment Reservation'}`
         });
       } else if (payload.eventType === 'UPDATE') {
-        playNotificationChime(payload.new?.status === 'approved' ? 'high' : 'low');
+        const isAppr = payload.new?.status === 'approved';
+        playNotificationChime(isAppr ? 'high' : 'low');
+        addNotification({
+          title: isAppr ? 'Booking Approved' : payload.new?.status === 'rejected' ? 'Booking Declined' : 'Booking Status Changed',
+          message: `Reservation for ${payload.new?.room_id || 'lab slot'} has been ${payload.new?.status || 'updated'}.`,
+          type: isAppr ? 'approved' : payload.new?.status === 'rejected' ? 'rejected' : 'status',
+          category: 'booking',
+          target_roles: ['student', 'faculty', 'lab_incharge', 'admin']
+        });
         setToastNotification({
           id: `toast-${Date.now()}`,
           type: payload.new?.status || 'updated',
-          title: payload.new?.status === 'approved' ? '✅ Booking Approved!' : '⚠️ Booking Status Changed',
+          title: isAppr ? '✅ Booking Approved!' : '⚠️ Booking Status Changed',
           message: `Booking status updated to ${String(payload.new?.status || '').toUpperCase()}`
         });
       }
@@ -78,16 +95,10 @@ export default function App() {
     banner_active: true
   });
 
-  const [pagesConfig, setPagesConfig] = useState([]);
-
   const refreshGlobalData = async () => {
     try {
-      const [pagesRes, setRes] = await Promise.all([
-        api.getPages(),
-        api.getSettings()
-      ]);
+      const setRes = await api.getSettings();
       if (setRes) setSettings(setRes);
-      if (pagesRes) setPagesConfig(pagesRes);
     } catch (err) {
       console.warn('Refresh error:', err);
     }
@@ -187,7 +198,8 @@ export default function App() {
       <Navbar
         currentUser={currentUser}
         onLogout={signOut}
-        onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
+        onOpenNotifications={() => setShowNotificationsModal(true)}
+        unreadNotificationsCount={unreadCount}
       />
 
       {/* Main Content Area */}
@@ -230,7 +242,6 @@ export default function App() {
                 <AdminPortal
                   onRefreshNeeded={refreshGlobalData}
                   settings={settings}
-                  pagesConfig={pagesConfig}
                   onSaveSettings={(newSet) => setSettings(newSet)}
                 />
               )}
@@ -327,15 +338,58 @@ export default function App() {
         </div>
       )}
 
-      {/* Supabase Cloud Database Configuration Modal */}
-      <SupabaseConfigModal
-        isOpen={isSupabaseModalOpen}
-        onClose={() => setIsSupabaseModalOpen(false)}
-        onConfigSaved={() => {
-          refreshGlobalData();
-          refreshBookings();
-        }}
-      />
+      {/* Notifications Modal Center (triggered from Navbar bell) */}
+      {showNotificationsModal && (
+        <div 
+          onClick={() => setShowNotificationsModal(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '680px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '1.25rem',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid var(--border-light)', paddingBottom: '0.75rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                Notifications & Alerts Center
+              </h3>
+              <button 
+                onClick={() => setShowNotificationsModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  fontSize: '1.25rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)'
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <NotificationsView />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

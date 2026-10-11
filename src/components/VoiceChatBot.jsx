@@ -146,14 +146,14 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
       <div className="bg-amrita-maroon text-white p-4 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
-            <Bot className="w-6 h-6 text-white" />
+            <Bot size={22} className="text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-base flex items-center gap-2">
+            <h3 className="font-bold text-base flex items-center gap-2" style={{ color: '#ffffff' }}>
               Amrita Yukti AI
               <span className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse" />
             </h3>
-            <p className="text-xs text-white/80">Multilingual Database-Grounded Assistant</p>
+            <p className="text-xs text-white/80" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Multilingual Database-Grounded Assistant</p>
           </div>
         </div>
 
@@ -165,21 +165,28 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             className={`p-1.5 rounded-lg border transition ${
               ttsEnabled ? 'bg-white text-amrita-maroon border-white' : 'border-white/30 text-white hover:bg-white/10'
             }`}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '34px', minHeight: '34px' }}
             title={ttsEnabled ? 'Mute voice response' : 'Enable spoken voice response'}
           >
-            {ttsEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
           </button>
 
           {/* Language Selector */}
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="bg-white/10 border border-white/20 text-white rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none focus:bg-white focus:text-gray-900"
+            className="border rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none"
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.15)',
+              borderColor: 'rgba(255, 255, 255, 0.3)',
+              color: '#ffffff',
+              cursor: 'pointer'
+            }}
           >
-            <option value="en" className="text-gray-900">English</option>
-            <option value="ta" className="text-gray-900">தமிழ் (Tamil)</option>
-            <option value="hi" className="text-gray-900">हिन्दी (Hindi)</option>
-            <option value="ml" className="text-gray-900">മലയാളം (Malayalam)</option>
+            <option value="en" style={{ color: '#0f172a', background: '#ffffff' }}>English</option>
+            <option value="ta" style={{ color: '#0f172a', background: '#ffffff' }}>தமிழ் (Tamil)</option>
+            <option value="hi" style={{ color: '#0f172a', background: '#ffffff' }}>हिन्दी (Hindi)</option>
+            <option value="ml" style={{ color: '#0f172a', background: '#ffffff' }}>മലയാളം (Malayalam)</option>
           </select>
         </div>
       </div>
@@ -193,7 +200,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
               <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
                 isUser ? 'bg-amrita-maroon text-white' : 'bg-white border border-gray-200 text-amrita-maroon'
               }`}>
-                {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                {isUser ? <User size={16} /> : <Bot size={16} />}
               </div>
 
               <div className={`p-3.5 rounded-2xl max-w-[80%] text-sm whitespace-pre-wrap leading-relaxed shadow-sm ${
@@ -212,7 +219,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
           <div className="bg-white border-2 border-amrita-maroon/30 rounded-2xl p-4 shadow-md space-y-3 max-w-[85%] ml-11">
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
               <span className="text-xs font-bold uppercase text-amrita-maroon tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
+                <Sparkles size={16} className="text-amber-500" />
                 Recommended Machine Slot
               </span>
               <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -233,8 +240,10 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             <button
               onClick={handleConfirmActionCard}
               className="w-full btn-amrita py-2 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-sm"
+              style={{ cursor: 'pointer' }}
             >
-              Proceed to Book Machine <ArrowRight className="w-3.5 h-3.5" />
+              <span>Proceed to Book Machine</span>
+              <ArrowRight size={14} />
             </button>
           </div>
         )}
@@ -257,6 +266,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             type="button"
             onClick={() => handleSend(p.query)}
             className="bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition shadow-2xs"
+            style={{ cursor: 'pointer' }}
           >
             {p.label}
           </button>
@@ -276,14 +286,25 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             <button
               type="button"
               onClick={toggleVoiceInput}
-              className={`p-2.5 rounded-xl border transition shrink-0 ${
+              className={`rounded-xl border transition shrink-0 ${
                 isListening
                   ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
                   : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
               }`}
+              style={{
+                width: '42px',
+                height: '42px',
+                minWidth: '42px',
+                minHeight: '42px',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
               title={isListening ? 'Stop listening' : 'Speak into microphone'}
             >
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
             </button>
           )}
 
@@ -294,14 +315,26 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             onChange={(e) => setInput(e.target.value)}
             placeholder={isListening ? 'Listening to speech...' : 'Ask about component drawers, machine slots, or free rooms...'}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amrita-maroon"
+            style={{ minHeight: '42px', backgroundColor: '#ffffff', color: 'var(--text-main)' }}
           />
 
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="btn-amrita p-2.5 rounded-xl disabled:opacity-40 shrink-0"
+            className="btn-amrita rounded-xl disabled:opacity-40 shrink-0"
+            style={{
+              width: '42px',
+              height: '42px',
+              minWidth: '42px',
+              minHeight: '42px',
+              padding: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: (!input.trim() || loading) ? 'not-allowed' : 'pointer'
+            }}
           >
-            <Send className="w-5 h-5" />
+            <Send size={18} />
           </button>
         </form>
 

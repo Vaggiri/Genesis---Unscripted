@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Building2, 
   Cpu, 
-  Layers, 
   CheckCircle2, 
   Clock, 
   Search, 
@@ -18,11 +17,7 @@ export default function LabDirectoryView({ onBookSlot }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLab, setSelectedLab] = useState('all');
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [resData, invData] = await Promise.all([
@@ -36,7 +31,11 @@ export default function LabDirectoryView({ onBookSlot }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const labs = [
     { id: 'lab-fablab', name: 'Digital Fabrication & Prototyping Hub', block: 'AB-1', floor: 1, category: 'Fabrication & 3D Print' },
@@ -61,13 +60,14 @@ export default function LabDirectoryView({ onBookSlot }) {
       {/* Search and Category Filter Bar */}
       <div className="card-amrita p-4 flex flex-col md:flex-row items-center justify-between gap-3">
         <div className="relative w-full md:w-96">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-gray-400" />
+          <Search size={16} className="absolute left-3.5 top-3 text-gray-400" style={{ pointerEvents: 'none' }} />
           <input
             type="text"
             placeholder="Search equipment (Bambu Lab, RTX 4090) or drawer components..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
+            style={{ minHeight: '40px', backgroundColor: '#ffffff', color: 'var(--text-main)' }}
           />
         </div>
 
@@ -82,6 +82,7 @@ export default function LabDirectoryView({ onBookSlot }) {
                   ? 'bg-amrita-maroon text-white shadow-2xs'
                   : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
+              style={{ cursor: 'pointer' }}
             >
               {lId === 'all' ? 'All Hubs' : lId.replace('lab-', '').toUpperCase()}
             </button>
@@ -106,26 +107,26 @@ export default function LabDirectoryView({ onBookSlot }) {
                       {lab.category}
                     </span>
                     <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-emerald-600" /> Open: 08:30 - 17:30
+                      <Clock size={12} className="text-emerald-600" /> Open: 08:30 - 17:30
                     </span>
                   </div>
 
                   <div>
                     <h3 className="font-extrabold text-gray-900 text-lg">{lab.name}</h3>
                     <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                      <Building2 className="w-3.5 h-3.5 text-amrita-maroon" /> Block {lab.block}, Floor {lab.floor}
+                      <Building2 size={14} className="text-amrita-maroon" /> Block {lab.block}, Floor {lab.floor}
                     </p>
                   </div>
 
                   {/* Registered Machines & Resources */}
                   <div className="space-y-1.5 pt-2 border-t border-gray-100">
                     <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1">
-                      <Cpu className="w-3.5 h-3.5 text-amrita-maroon" /> Active Machines & Benches ({labResources.length}):
+                      <Cpu size={14} className="text-amrita-maroon" /> Active Machines & Benches ({labResources.length}):
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {labResources.map(r => (
                         <span key={r.id} className="bg-gray-100 border border-gray-200 text-gray-800 text-xs px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> {r.name}
+                          <CheckCircle2 size={12} className="text-emerald-600" /> {r.name}
                           {r.requires_cert && <span className="text-[9px] text-amber-700 font-bold bg-amber-100 px-1 rounded">Cert Req</span>}
                         </span>
                       ))}
@@ -135,7 +136,7 @@ export default function LabDirectoryView({ onBookSlot }) {
                   {/* Live Drawer Inventory */}
                   <div className="space-y-1.5 pt-2 border-t border-gray-100">
                     <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1">
-                      <Package className="w-3.5 h-3.5 text-amrita-maroon" /> Drawer Component Stock ({labInventory.length} items):
+                      <Package size={14} className="text-amrita-maroon" /> Drawer Component Stock ({labInventory.length} items):
                     </span>
                     <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
                       {labInventory.map(item => (
@@ -153,8 +154,9 @@ export default function LabDirectoryView({ onBookSlot }) {
                       if (onBookSlot) onBookSlot(lab);
                     }}
                     className="btn-amrita px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-2xs"
+                    style={{ cursor: 'pointer' }}
                   >
-                    <Calendar className="w-3.5 h-3.5" /> Book Machine Slot
+                    <Calendar size={14} /> <span>Book Machine Slot</span>
                   </button>
                 </div>
               </div>

@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Layers, Package, CheckSquare, BarChart3, ShoppingCart, Plus, CheckCircle2 } from 'lucide-react';
+import { Layers, Package, CheckSquare, BarChart3, ShoppingCart, Plus, Bell } from 'lucide-react';
 import JobQueue from './JobQueue';
 import InventoryUpload from './InventoryUpload';
 import InventorySearch from './InventorySearch';
 import FacultyApprovalsView from './FacultyApprovalsView';
 import UtilizationDashboard from './UtilizationDashboard';
+import NotificationsView from './NotificationsView';
+import YuktiLogo from './YuktiLogo';
+import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 
 export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot }) {
   const [activeTab, setActiveTab] = useState('queue');
+  const { unreadCount } = useNotifications();
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderItem, setOrderItem] = useState('');
   const [orderQty, setOrderQty] = useState(5);
   const [orderReason, setOrderReason] = useState('');
   const [submittingOrder, setSubmittingOrder] = useState(false);
-
-  useEffect(() => {
-    loadPurchaseRequests();
-  }, []);
 
   const loadPurchaseRequests = async () => {
     try {
@@ -28,6 +28,10 @@ export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot
       console.warn('Failed to fetch purchase requests:', err);
     }
   };
+
+  useEffect(() => {
+    loadPurchaseRequests();
+  }, []);
 
   const handleCreateOrder = async (e) => {
     e.preventDefault();
@@ -56,16 +60,19 @@ export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot
     <div className="space-y-6">
       {/* Workshop Manager Header */}
       <div className="card-amrita p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <span className="badge-amrita text-xs font-bold uppercase tracking-wider mb-1 inline-block">
-            Workshop Manager / Lab In-Charge Desk
-          </span>
-          <h2 className="text-2xl font-black text-gray-900">
-            Digital Fabrication & Prototyping Bay Control
-          </h2>
-          <p className="text-sm text-gray-500">
-            Welcome, {currentUser?.full_name || 'Lab In-Charge'}. Manage machine job queues, verify drawer audits, and approve workstation allocations.
-          </p>
+        <div className="flex items-center gap-4">
+          <YuktiLogo size={46} style={{ borderRadius: '13px', boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)', flexShrink: 0 }} />
+          <div>
+            <span className="badge-amrita text-xs font-bold uppercase tracking-wider mb-1 inline-block">
+              Workshop Manager / Lab In-Charge Desk
+            </span>
+            <h2 className="text-2xl font-black text-gray-900">
+              Digital Fabrication & Prototyping Bay Control
+            </h2>
+            <p className="text-sm text-gray-500">
+              Welcome, {currentUser?.full_name || 'Lab In-Charge'}. Manage machine job queues, verify drawer audits, and approve workstation allocations.
+            </p>
+          </div>
         </div>
 
         <button
@@ -98,6 +105,30 @@ export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot
           }`}
         >
           <CheckSquare className="w-4 h-4" /> Slot Approvals
+        </button>
+
+        <button
+          onClick={() => setActiveTab('notifications')}
+          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
+            activeTab === 'notifications'
+              ? 'border-amrita-maroon text-amrita-maroon'
+              : 'border-transparent text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Bell className="w-4 h-4" /> Notifications
+          {unreadCount > 0 && (
+            <span style={{
+              backgroundColor: '#dc2626',
+              color: '#ffffff',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              padding: '0.1rem 0.4rem',
+              borderRadius: '999px',
+              marginLeft: '0.25rem'
+            }}>
+              {unreadCount}
+            </span>
+          )}
         </button>
 
         <button
@@ -146,6 +177,9 @@ export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot
       </div>
 
       {/* Tab Panels */}
+      {activeTab === 'notifications' && (
+        <NotificationsView />
+      )}
       {activeTab === 'queue' && (
         <JobQueue onOpenPurchaseRequest={() => setShowOrderModal(true)} />
       )}

@@ -162,7 +162,7 @@ export default function JobUpload({ onJobSubmitted }) {
     <div className="card-amrita p-6 space-y-6">
       <div>
         <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Upload className="w-6 h-6 text-amrita-maroon" />
+          <Upload size={22} className="text-amrita-maroon" />
           Digital Fabrication Intake & Automated Machine Routing
         </h3>
         <p className="text-sm text-gray-500">
@@ -180,9 +180,10 @@ export default function JobUpload({ onJobSubmitted }) {
               ? 'border-amrita-maroon bg-amrita-maroon/5 text-amrita-maroon shadow-sm'
               : 'border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
+          style={{ cursor: 'pointer' }}
         >
-          <Box className="w-5 h-5 text-amrita-maroon" />
-          3D Additive Printing
+          <Box size={20} className="text-amrita-maroon" />
+          <span>3D Additive Printing</span>
         </button>
 
         <button
@@ -193,23 +194,25 @@ export default function JobUpload({ onJobSubmitted }) {
               ? 'border-amrita-maroon bg-amrita-maroon/5 text-amrita-maroon shadow-sm'
               : 'border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
+          style={{ cursor: 'pointer' }}
         >
-          <Cpu className="w-5 h-5 text-amrita-maroon" />
-          PCB Precision Milling
+          <Cpu size={20} className="text-amrita-maroon" />
+          <span>PCB Precision Milling</span>
         </button>
       </div>
 
       {/* Upload Drag & Drop Area */}
-      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-amrita-maroon transition bg-gray-50/50">
+      <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-amrita-maroon transition bg-gray-50/50" style={{ cursor: 'pointer' }}>
         <input
           type="file"
           id="job-file-input"
           accept=".stl,.obj,.3mf,.step,.stp,.zip,.kicad_pcb,.brd"
           onChange={handleFileSelect}
           className="hidden"
+          style={{ display: 'none' }}
         />
-        <label htmlFor="job-file-input" className="cursor-pointer flex flex-col items-center gap-2">
-          <Upload className="w-10 h-10 text-amrita-maroon/70" />
+        <label htmlFor="job-file-input" className="cursor-pointer flex flex-col items-center gap-2" style={{ cursor: 'pointer', width: '100%' }}>
+          <Upload size={38} className="text-amrita-maroon" style={{ opacity: 0.85 }} />
           <span className="font-bold text-gray-800 text-base">
             {file ? file.name : 'Click or drag CAD / CAM fabrication file here'}
           </span>

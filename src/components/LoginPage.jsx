@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { validateCollegeEmail } from '../services/auth';
+import YuktiLogo from './YuktiLogo';
 
 export default function LoginPage({ onLoginSuccess }) {
   const { signIn, signUp } = useAuth();
@@ -91,65 +92,61 @@ export default function LoginPage({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center py-10 px-4">
-      <div className="max-w-md w-full space-y-6">
+    <div className="login-wrapper">
+      <div className="login-card-container">
         
         {/* Header Branding */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 rounded-2xl bg-amrita-maroon/10 border border-amrita-maroon/20 text-amrita-maroon mb-1">
-            <Sparkles className="w-8 h-8" />
-          </div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+        <div className="login-header">
+          <YuktiLogo size={62} style={{ marginBottom: '1rem', boxShadow: '0 8px 24px rgba(164,18,63,0.3)', borderRadius: '22px' }} />
+          <h1 className="login-title">
             Amrita Yukti Portal
           </h1>
-          <p className="text-xs text-gray-500">
+          <p className="login-subtitle">
             Unified Campus Innovation & Space Radar • Coimbatore Campus
           </p>
         </div>
 
         {/* Tab Toggle: Login vs Signup */}
-        <div className="flex bg-gray-100 p-1 rounded-xl">
+        <div className="auth-mode-tabs">
           <button
             type="button"
             onClick={() => { setAuthMode('login'); setError(''); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
-              authMode === 'login' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
-            }`}
+            className={`auth-tab-btn ${authMode === 'login' ? 'active' : ''}`}
           >
-            <LogIn className="w-4 h-4 text-amrita-maroon" /> Sign In
+            <LogIn size={16} />
+            <span>Sign In</span>
           </button>
           <button
             type="button"
             onClick={() => { setAuthMode('signup'); setError(''); }}
-            className={`flex-1 py-2 text-xs font-bold rounded-lg transition flex items-center justify-center gap-1.5 ${
-              authMode === 'signup' ? 'bg-white text-gray-900 shadow-xs' : 'text-gray-500 hover:text-gray-900'
-            }`}
+            className={`auth-tab-btn ${authMode === 'signup' ? 'active' : ''}`}
           >
-            <UserPlus className="w-4 h-4 text-amrita-maroon" /> Student Register
+            <UserPlus size={16} />
+            <span>Student Register</span>
           </button>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 text-xs p-3.5 rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <div className="login-alert error">
+            <AlertCircle size={16} className="shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {/* Success Alert */}
         {signupSuccess && (
-          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs p-3.5 rounded-xl flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <div className="login-alert success">
+            <CheckCircle2 size={16} className="shrink-0" />
             <span>{signupSuccess}</span>
           </div>
         )}
 
         {/* Sign In Form */}
         {authMode === 'login' ? (
-          <form onSubmit={handleLoginSubmit} className="card-amrita p-6 space-y-4 shadow-md">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+          <form onSubmit={handleLoginSubmit} className="login-form-card">
+            <div className="form-group">
+              <label className="form-label" htmlFor="login-email-input">
                 College Email Address
               </label>
               <input
@@ -159,17 +156,15 @@ export default function LoginPage({ onLoginSuccess }) {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@cb.amrita.edu or @cb.students.amrita.edu"
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
+                className="form-input-styled"
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-gray-700 uppercase">
-                  Password
-                </label>
-              </div>
-              <div className="relative">
+            <div className="form-group">
+              <label className="form-label" htmlFor="login-password-input">
+                Password
+              </label>
+              <div className="password-input-wrapper">
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="login-password-input"
@@ -177,14 +172,15 @@ export default function LoginPage({ onLoginSuccess }) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your account password"
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:ring-2 focus:ring-amrita-maroon focus:outline-none pr-10"
+                  className="form-input-styled password-field"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
+                  className="password-toggle-btn"
+                  title={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -192,30 +188,33 @@ export default function LoginPage({ onLoginSuccess }) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-amrita py-2.5 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2"
+              className="btn-login-submit"
             >
               {loading ? 'Authenticating with Supabase...' : (
-                <>Sign In to Campus Hub <ArrowRight className="w-4 h-4" /></>
+                <>
+                  <span>Sign In to Campus Hub</span>
+                  <ArrowRight size={16} />
+                </>
               )}
             </button>
           </form>
         ) : (
           /* Sign Up Form (Public sign-up is strictly for Student accounts) */
-          <form onSubmit={handleSignupSubmit} className="card-amrita p-6 space-y-3.5 shadow-md">
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Full Name</label>
+          <form onSubmit={handleSignupSubmit} className="login-form-card">
+            <div className="form-group">
+              <label className="form-label">Full Name</label>
               <input
                 type="text"
                 value={signupName}
                 onChange={(e) => setSignupName(e.target.value)}
                 placeholder="e.g. Adithya K."
                 required
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium"
+                className="form-input-styled"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
+            <div className="form-group">
+              <label className="form-label">
                 Amrita Student Email (@cb.students.amrita.edu)
               </label>
               <input
@@ -224,50 +223,50 @@ export default function LoginPage({ onLoginSuccess }) {
                 onChange={(e) => setSignupEmail(e.target.value)}
                 placeholder="rollno@cb.students.amrita.edu"
                 required
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium"
+                className="form-input-styled"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Roll Number</label>
+            <div className="form-group">
+              <label className="form-label">Roll Number</label>
               <input
                 type="text"
                 value={signupRoll}
                 onChange={(e) => setSignupRoll(e.target.value)}
                 placeholder="CB.EN.U4AIE23045"
                 required
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium"
+                className="form-input-styled"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Department</label>
+            <div className="form-row-2col">
+              <div className="form-group">
+                <label className="form-label">Department</label>
                 <select
                   value={signupDept}
                   onChange={(e) => setSignupDept(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-gray-300 text-xs font-semibold bg-white"
+                  className="form-input-styled"
                 >
-                  <option value="CSE">CSE</option>
-                  <option value="AI & DS">AI & DS</option>
-                  <option value="ECE">ECE</option>
-                  <option value="MECH">MECH</option>
+                  <option value="Computer Science & Engineering">CSE</option>
+                  <option value="AI & Data Science">AI & DS</option>
+                  <option value="Electronics & Communication">ECE</option>
+                  <option value="Mechanical Engineering">MECH</option>
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Batch</label>
+              <div className="form-group">
+                <label className="form-label">Batch</label>
                 <input
                   type="text"
                   value={signupBatch}
                   onChange={(e) => setSignupBatch(e.target.value)}
-                  className="w-full px-2.5 py-2 rounded-xl border border-gray-300 text-xs font-medium"
+                  className="form-input-styled"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Create Password</label>
+            <div className="form-group">
+              <label className="form-label">Create Password</label>
               <input
                 type="password"
                 value={signupPassword}
@@ -275,82 +274,85 @@ export default function LoginPage({ onLoginSuccess }) {
                 placeholder="Minimum 6 characters"
                 required
                 minLength={6}
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-sm font-medium"
+                className="form-input-styled"
               />
             </div>
 
-            <p className="text-[11px] text-gray-500 italic">
+            <p className="signup-notice">
               ℹ️ Public registration creates Student Innovator accounts. Faculty, In-Charge, and Admin roles are granted by administration.
             </p>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn-amrita py-2.5 rounded-xl text-sm font-bold shadow-md flex items-center justify-center gap-2"
+              className="btn-login-submit"
             >
               {loading ? 'Creating Account...' : (
-                <>Register Student Account <ArrowRight className="w-4 h-4" /></>
+                <>
+                  <span>Register Student Account</span>
+                  <ArrowRight size={16} />
+                </>
               )}
             </button>
           </form>
         )}
 
-        {/* Demo Accounts Panel for Reviewers (NO hardcoded passwords in code!) */}
-        <div className="card-amrita p-4 space-y-2.5 bg-gray-50/80 border border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-amrita-maroon" /> Review Demo Accounts
+        {/* Demo Accounts Panel for Reviewers */}
+        <div className="demo-accounts-box">
+          <div className="demo-accounts-header">
+            <span className="demo-accounts-title">
+              <ShieldCheck size={16} className="text-maroon" /> Review Demo Accounts
             </span>
-            <span className="text-[10px] text-gray-400 font-mono">Click to autofill email</span>
+            <span className="demo-accounts-hint">Click to autofill email</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-xs">
+          <div className="demo-accounts-grid">
             <button
               type="button"
               onClick={() => fillDemoEmail('student.demo@cb.students.amrita.edu')}
-              className="p-2 rounded-lg bg-white border border-gray-200 text-left hover:border-amrita-maroon transition shadow-2xs"
+              className="demo-account-card"
             >
-              <div className="font-bold text-gray-900 flex items-center gap-1">
-                <GraduationCap className="w-3.5 h-3.5 text-emerald-600" /> Student
+              <div className="demo-card-role text-emerald">
+                <GraduationCap size={15} /> Student
               </div>
-              <div className="text-[10px] text-gray-500 truncate">student.demo@cb.students.amrita.edu</div>
+              <div className="demo-card-email">student.demo@cb.students.amrita.edu</div>
             </button>
 
             <button
               type="button"
               onClick={() => fillDemoEmail('faculty.demo@cb.amrita.edu')}
-              className="p-2 rounded-lg bg-white border border-gray-200 text-left hover:border-amrita-maroon transition shadow-2xs"
+              className="demo-account-card"
             >
-              <div className="font-bold text-gray-900 flex items-center gap-1">
-                <BookOpen className="w-3.5 h-3.5 text-indigo-600" /> Faculty
+              <div className="demo-card-role text-indigo">
+                <BookOpen size={15} /> Faculty
               </div>
-              <div className="text-[10px] text-gray-500 truncate">faculty.demo@cb.amrita.edu</div>
+              <div className="demo-card-email">faculty.demo@cb.amrita.edu</div>
             </button>
 
             <button
               type="button"
               onClick={() => fillDemoEmail('incharge.demo@cb.amrita.edu')}
-              className="p-2 rounded-lg bg-white border border-gray-200 text-left hover:border-amrita-maroon transition shadow-2xs"
+              className="demo-account-card"
             >
-              <div className="font-bold text-gray-900 flex items-center gap-1">
-                <Wrench className="w-3.5 h-3.5 text-amber-600" /> In-Charge
+              <div className="demo-card-role text-amber">
+                <Wrench size={15} /> In-Charge
               </div>
-              <div className="text-[10px] text-gray-500 truncate">incharge.demo@cb.amrita.edu</div>
+              <div className="demo-card-email">incharge.demo@cb.amrita.edu</div>
             </button>
 
             <button
               type="button"
               onClick={() => fillDemoEmail('admin.demo@cb.amrita.edu')}
-              className="p-2 rounded-lg bg-white border border-gray-200 text-left hover:border-amrita-maroon transition shadow-2xs"
+              className="demo-account-card"
             >
-              <div className="font-bold text-gray-900 flex items-center gap-1">
-                <Lock className="w-3.5 h-3.5 text-rose-600" /> Admin
+              <div className="demo-card-role text-rose">
+                <Lock size={15} /> Admin
               </div>
-              <div className="text-[10px] text-gray-500 truncate">admin.demo@cb.amrita.edu</div>
+              <div className="demo-card-email">admin.demo@cb.amrita.edu</div>
             </button>
           </div>
 
-          <p className="text-[11px] text-gray-500 text-center pt-1 border-t border-gray-200/60">
+          <p className="demo-accounts-footnote">
             Passwords are read securely from your <code>DEMO_PASSWORD</code> environment variable.
           </p>
         </div>
