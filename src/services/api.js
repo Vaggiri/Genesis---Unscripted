@@ -228,10 +228,10 @@ export const api = {
   },
 
   // 8. Chatbot (§6)
-  async sendChatMessage(message, preferredLanguage = 'en') {
+  async sendChatMessage(message, preferredLanguage = 'en', modelMode = 'cloud', history = []) {
     return await apiRequest('/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, preferredLanguage })
+      body: JSON.stringify({ message, preferredLanguage, modelMode, history })
     });
   },
 

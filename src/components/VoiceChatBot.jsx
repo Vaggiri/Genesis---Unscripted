@@ -1,13 +1,34 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Mic, MicOff, Volume2, VolumeX, Sparkles, ArrowRight } from 'lucide-react';
+import { 
+  Send, 
+  Bot, 
+  User, 
+  Mic, 
+  MicOff, 
+  Volume2, 
+  VolumeX, 
+  Sparkles, 
+  ArrowRight,
+  Cloud,
+  Zap 
+} from 'lucide-react';
 import { api } from '../services/api';
 
+let msgCounter = 0;
+function createMessageId() {
+  msgCounter += 1;
+  return `msg-${Date.now()}-${msgCounter}`;
+}
+
 export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) {
+  const [modelMode, setModelMode] = useState('cloud'); // 'cloud' | 'local'
   const [messages, setMessages] = useState([
     {
       id: 'init-1',
       sender: 'bot',
-      text: 'Vanakkam! I am Amrita Yukti AI, your campus innovation assistant. Ask me about drawer stock (e.g. 10k resistors), 3D printer slots, vacant classrooms, or speak in Tamil, Hindi, or Malayalam!'
+      text: 'Vanakkam! I am Amrita Yukti AI, your campus innovation assistant. Ask me about drawer stock (e.g. 10k resistors), 3D printer slots, vacant classrooms, or hardware allocation from ICTS! You can toggle between Cloud Model (OmniRoute vag) and Local Model anytime above.',
+      mode: 'cloud',
+      model: 'vag'
     }
   ]);
 
@@ -87,7 +108,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
     if (!query || loading) return;
 
     const userMsg = {
-      id: `msg-${Date.now()}`,
+      id: createMessageId(),
       sender: 'user',
       text: query
     };
@@ -98,13 +119,21 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
     setActionCardData(null);
 
     try {
-      const response = await api.sendChatMessage(query, language);
+      const historyPayload = messages.slice(-6).map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        text: m.text
+      }));
+
+      const response = await api.sendChatMessage(query, language, modelMode, historyPayload);
       const botText = response.reply || 'I have checked our campus records.';
 
       const botMsg = {
-        id: `msg-${Date.now() + 1}`,
+        id: createMessageId(),
         sender: 'bot',
-        text: botText
+        text: botText,
+        mode: response.mode || modelMode,
+        model: response.model || (modelMode === 'cloud' ? 'vag' : 'local'),
+        fallbackNotice: response.fallbackNotice
       };
 
       setMessages(prev => [...prev, botMsg]);
@@ -117,9 +146,10 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
       setMessages(prev => [
         ...prev,
         {
-          id: `msg-${Date.now() + 1}`,
+          id: createMessageId(),
           sender: 'bot',
-          text: `⚠️ Engine error: ${err.message}. Please check connection or ask in standard keywords.`
+          text: `⚠️ Engine error: ${err.message}. Please check connection or switch to the Local Model toggle above.`,
+          mode: modelMode
         }
       ]);
     } finally {
@@ -143,21 +173,85 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
   return (
     <div className="card-amrita flex flex-col h-[600px] overflow-hidden shadow-lg border border-gray-200">
       {/* Header */}
-      <div className="bg-amrita-maroon text-white p-4 flex items-center justify-between shrink-0">
+      <div className="bg-amrita-maroon text-white p-3.5 sm:p-4 flex items-center justify-between shrink-0 flex-wrap gap-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20">
+          <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center border border-white/20 shrink-0">
             <Bot size={22} className="text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-base flex items-center gap-2" style={{ color: '#ffffff' }}>
+            <h3 className="font-bold text-base flex items-center gap-2" style={{ color: '#ffffff', margin: 0 }}>
               Amrita Yukti AI
               <span className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse" />
             </h3>
-            <p className="text-xs text-white/80" style={{ color: 'rgba(255, 255, 255, 0.85)' }}>Multilingual Database-Grounded Assistant</p>
+            <p className="text-xs text-white/80" style={{ color: 'rgba(255, 255, 255, 0.85)', margin: 0 }}>
+              {modelMode === 'cloud' 
+                ? '☁️ OmniRoute Cloud Model (vag @ localhost:20128)' 
+                : '⚡ Local Model (Campus Database & Rule Grounded)'}
+            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* AI Model Toggle Switch */}
+          <div 
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'rgba(0, 0, 0, 0.28)',
+              padding: '3px',
+              borderRadius: '10px',
+              border: '1px solid rgba(255, 255, 255, 0.25)',
+              gap: '2px'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setModelMode('cloud')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '7px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: modelMode === 'cloud' ? '#ffffff' : 'transparent',
+                color: modelMode === 'cloud' ? 'var(--amrita-maroon)' : '#ffffff',
+                boxShadow: modelMode === 'cloud' ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+              title="Cloud Model via OmniRoute (combo: vag at http://localhost:20128/v1)"
+            >
+              <Cloud size={13} />
+              <span>Cloud (vag)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setModelMode('local')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                borderRadius: '7px',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                border: 'none',
+                cursor: 'pointer',
+                backgroundColor: modelMode === 'local' ? '#ffffff' : 'transparent',
+                color: modelMode === 'local' ? 'var(--amrita-maroon)' : '#ffffff',
+                boxShadow: modelMode === 'local' ? '0 1px 3px rgba(0,0,0,0.2)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+              title="Local Model (Campus Grounded & Regex Pattern Engine)"
+            >
+              <Zap size={13} />
+              <span>Local Model</span>
+            </button>
+          </div>
+
           {/* TTS Toggle */}
           <button
             type="button"
@@ -165,17 +259,17 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             className={`p-1.5 rounded-lg border transition ${
               ttsEnabled ? 'bg-white text-amrita-maroon border-white' : 'border-white/30 text-white hover:bg-white/10'
             }`}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '34px', minHeight: '34px' }}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px', minHeight: '32px' }}
             title={ttsEnabled ? 'Mute voice response' : 'Enable spoken voice response'}
           >
-            {ttsEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+            {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
 
           {/* Language Selector */}
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="border rounded-lg px-2.5 py-1 text-xs font-semibold focus:outline-none"
+            className="border rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.15)',
               borderColor: 'rgba(255, 255, 255, 0.3)',
@@ -183,12 +277,41 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
               cursor: 'pointer'
             }}
           >
-            <option value="en" style={{ color: '#0f172a', background: '#ffffff' }}>English</option>
-            <option value="ta" style={{ color: '#0f172a', background: '#ffffff' }}>தமிழ் (Tamil)</option>
-            <option value="hi" style={{ color: '#0f172a', background: '#ffffff' }}>हिन्दी (Hindi)</option>
-            <option value="ml" style={{ color: '#0f172a', background: '#ffffff' }}>മലയാളം (Malayalam)</option>
+            <option value="en" style={{ color: '#0f172a', background: '#ffffff' }}>EN</option>
+            <option value="ta" style={{ color: '#0f172a', background: '#ffffff' }}>தமிழ்</option>
+            <option value="hi" style={{ color: '#0f172a', background: '#ffffff' }}>हिन्दी</option>
+            <option value="ml" style={{ color: '#0f172a', background: '#ffffff' }}>മലയാളം</option>
           </select>
         </div>
+      </div>
+
+      {/* Active Model Indicator Strip */}
+      <div style={{
+        padding: '0.45rem 1rem',
+        backgroundColor: modelMode === 'cloud' ? '#fbf8ff' : '#fffbeb',
+        borderBottom: `1px solid ${modelMode === 'cloud' ? '#e9d5ff' : '#fef3c7'}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        fontSize: '0.72rem',
+        flexWrap: 'wrap',
+        gap: '0.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>Active AI Model:</span>
+          {modelMode === 'cloud' ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#7e22ce', fontWeight: 800 }}>
+              <Cloud size={13} /> OmniRoute Gateway • Combo: <code>vag</code> (localhost:20128)
+            </span>
+          ) : (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#b45309', fontWeight: 800 }}>
+              <Zap size={13} /> Campus Local Grounded Model (Database & Rules)
+            </span>
+          )}
+        </div>
+        <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
+          {modelMode === 'cloud' ? 'Intelligent Multi-Turn LLM' : 'Instant Campus DB Grounding'}
+        </span>
       </div>
 
       {/* Messages Scroll Area */}
@@ -208,6 +331,28 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
                   ? 'bg-amrita-maroon text-white rounded-tr-none'
                   : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none'
               }`}>
+                {!isUser && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                    <span style={{
+                      fontSize: '0.625rem',
+                      fontWeight: 800,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      backgroundColor: m.mode === 'cloud' ? '#f3e8ff' : '#fef3c7',
+                      color: m.mode === 'cloud' ? '#6b21a8' : '#92400e',
+                      border: `1px solid ${m.mode === 'cloud' ? '#d8b4fe' : '#fde68a'}`
+                    }}>
+                      {m.mode === 'cloud' ? '☁️ OmniRoute (vag)' : '⚡ Local Engine'}
+                    </span>
+                    {m.fallbackNotice && (
+                      <span style={{ fontSize: '0.65rem', color: '#d97706', fontStyle: 'italic' }}>
+                        (Fallback to Local)
+                      </span>
+                    )}
+                  </div>
+                )}
                 {m.text}
               </div>
             </div>

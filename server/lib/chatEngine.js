@@ -146,7 +146,7 @@ export async function classifyWithGemini(message, apiKey = process.env.GEMINI_AP
 /**
  * Main chat engine pipeline.
  */
-export async function processChatMessage({ message, preferredLanguage = 'en', userProfile = null }) {
+export async function processChatMessage({ message, preferredLanguage = 'en', userProfile: _userProfile = null }) {
   const lang = detectLanguage(message, preferredLanguage);
   let { intent, query } = classifyIntent(message);
   const supabase = getSupabase();
@@ -299,5 +299,101 @@ export async function processChatMessage({ message, preferredLanguage = 'en', us
     reply: renderTemplate(lang, 'unknown'),
     intent: 'unknown',
     lang
+  };
+}
+
+export const DEFAULT_OMNIROUTE_URL = 'http://localhost:20128/v1';
+export const DEFAULT_OMNIROUTE_MODEL = 'vag';
+
+/**
+ * Queries the OmniRoute OpenAI-compatible gateway (e.g. http://localhost:20128/v1)
+ * using the configured combo model (default: 'vag').
+ */
+export async function queryOmniRoute({
+  message,
+  history = [],
+  baseUrl = process.env.OMNIROUTE_BASE_URL || DEFAULT_OMNIROUTE_URL,
+  model = process.env.OMNIROUTE_MODEL || DEFAULT_OMNIROUTE_MODEL,
+  apiKey = process.env.OMNIROUTE_API_KEY || 'sk-4cb24d557b65cf2e-fe47d8-c76f2729'
+}) {
+  const systemPrompt = `You are Amrita Yukti AI, an intelligent, helpful campus innovation and engineering assistant for Amrita Vishwa Vidyapeetham.
+You assist students, faculty, and lab managers with:
+1. Digital Fabrication & Prototyping (FabLab): 3D printing (Bambu Lab X1-Carbon, Prusa MK4), PCB prototyping (LPKF ProtoMat), CNC machining, laser cutting, and slicer/CAD recommendations.
+2. Drawer Component Stock: Electronic components such as 10k and 220Ω resistors, electrolytic and ceramic capacitors, ESP32, Arduino Uno, Raspberry Pi, Jetson Nano, sensors, and ICs located in campus drawer bins.
+3. Classroom & Lab Space Radar: Checking open lecture halls (AB1, AB2, AB3) and reserving workstations.
+4. Institutional ICTS Hardware Requisitions: Laptop and monitor allocation requests for academic/research use.
+5. Multilingual capability: Support English, Tamil (தமிழ்), Hindi (हिन्दी), and Malayalam (മലയാളം). If the user asks in an Indian language, respond in that language.
+Be clear, accurate, friendly, and concise.`;
+
+  const messagesPayload = [
+    { role: 'system', content: systemPrompt }
+  ];
+
+  if (Array.isArray(history) && history.length > 0) {
+    const recentHistory = history.slice(-6);
+    for (const h of recentHistory) {
+      const role = h.sender === 'user' || h.role === 'user' ? 'user' : 'assistant';
+      const text = h.text || h.content;
+      if (text) {
+        messagesPayload.push({ role, content: text });
+      }
+    }
+  }
+
+  messagesPayload.push({ role: 'user', content: message });
+
+  const url = `${baseUrl.replace(/\/+$/, '')}/chat/completions`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      messages: messagesPayload,
+      temperature: 0.7,
+      max_tokens: 800
+    }),
+    signal: AbortSignal.timeout(15000)
+  });
+
+  if (!response.ok) {
+    throw new Error(`OmniRoute error: HTTP ${response.status} ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  const reply = data.choices?.[0]?.message?.content?.trim() || 'I have processed your query through OmniRoute.';
+
+  // Check if an action card for slot booking should be attached
+  let actionCard = null;
+  const lowerMsg = message.toLowerCase();
+  if (/\b(book|slot|reserve|schedule|printer|bambu)\b/.test(lowerMsg)) {
+    const best = {
+      resourceId: 'res-3d-bambu-x1',
+      resourceName: 'Bambu Lab X1-Carbon',
+      start: new Date(Date.now() + 3600000).toISOString(),
+      end: new Date(Date.now() + 9000000).toISOString()
+    };
+    const startTimeFormatted = new Date(best.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const endTimeFormatted = new Date(best.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    actionCard = {
+      recommendedLabId: 'lab-fablab',
+      recommendedLabName: 'Digital Fabrication & Prototyping Hub',
+      recommendedSlot: `${startTimeFormatted} - ${endTimeFormatted}`,
+      detectedSpecs: [best.resourceName, 'High-Precision FDM', 'PLA / PETG Capable'],
+      resourceId: best.resourceId,
+      start: best.start,
+      end: best.end,
+      readyToBook: true
+    };
+  }
+
+  return {
+    reply,
+    model,
+    provider: 'omniroute',
+    mode: 'cloud',
+    actionCard
   };
 }
