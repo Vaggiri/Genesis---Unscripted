@@ -1,5 +1,4 @@
 import express from 'express';
-import { z } from 'zod';
 import { getSupabase, logAudit } from '../lib/supabase.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 

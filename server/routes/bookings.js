@@ -1,8 +1,9 @@
 import express from 'express';
 import { z } from 'zod';
 import { getSupabase, logAudit } from '../lib/supabase.js';
-import { requireAuth, requireRole } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 import { findEarliestSlot } from '../lib/scheduler.js';
+import { IST_OFFSET_MIN, istDayBounds, istNow } from '../lib/time.js';
 
 const router = express.Router();
 
@@ -46,33 +47,29 @@ router.get('/resources', async (req, res) => {
   res.json(lab ? mockResources.filter(r => r.lab_id === lab) : mockResources);
 });
 
-// 2. GET /api/availability?resourceId=&date=
-router.get('/availability', async (req, res) => {
-  const { resourceId, date } = req.query;
+// 2. GET /api/availability?resourceId=&date=YYYY-MM-DD (IST day) — authenticated; no user data returned
+router.get('/availability', requireAuth, async (req, res) => {
+  const { resourceId } = req.query;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : istNow().dateStr;
+  const bounds = istDayBounds(date);
   const supabase = getSupabase();
   await autoReleaseNoShows(supabase);
 
-  if (supabase && resourceId) {
-    const targetDate = date ? new Date(date) : new Date();
-    const dayStart = new Date(targetDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(targetDate);
-    dayEnd.setHours(23, 59, 59, 999);
-
+  if (supabase && resourceId && bounds) {
     const { data, error } = await supabase
       .from('facility_bookings')
       .select('id, resource_id, start_ts, end_ts, status')
       .eq('resource_id', resourceId)
       .in('status', ['pending', 'approved'])
-      .gte('start_ts', dayStart.toISOString())
-      .lte('end_ts', dayEnd.toISOString());
+      .lt('start_ts', bounds.end)
+      .gt('end_ts', bounds.start);
 
     if (!error) {
-      return res.json({ resourceId, date: dayStart.toISOString().split('T')[0], bookings: data || [] });
+      return res.json({ resourceId, date, bookings: data || [] });
     }
   }
 
-  res.json({ resourceId: resourceId || 'all', bookings: [] });
+  res.json({ resourceId: resourceId || 'all', date, bookings: [] });
 });
 
 // 3. POST /api/bookings/suggest (Runs Earliest-Available Algorithm)
@@ -80,11 +77,11 @@ const suggestSchema = z.object({
   resourceId: z.string().optional(),
   labId: z.string().optional(),
   kind: z.string().optional(),
-  durationMin: z.number().int().positive().default(60),
+  durationMin: z.number().int().positive().max(480).default(60),
   notBefore: z.string().optional()
 });
 
-router.post('/bookings/suggest', async (req, res) => {
+router.post('/bookings/suggest', requireAuth, async (req, res) => {
   const parsed = suggestSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: 'Invalid parameters', details: parsed.error.issues });
@@ -120,8 +117,9 @@ router.post('/bookings/suggest', async (req, res) => {
   const result = findEarliestSlot({
     candidates,
     durationMin,
-    notBefore: notBefore ? new Date(notBefore) : new Date(),
-    existingBookings
+    notBefore: notBefore && !Number.isNaN(new Date(notBefore).getTime()) ? new Date(notBefore) : new Date(),
+    existingBookings,
+    tzOffsetMin: IST_OFFSET_MIN
   });
 
   res.json({ success: true, ...result });
@@ -145,6 +143,27 @@ router.post('/bookings', requireAuth, async (req, res) => {
   const { resource_id, start_ts, end_ts, purpose = '', job_id = null } = parsed.data;
   const userId = req.user.id;
   const supabase = getSupabase();
+
+  const startMs = new Date(start_ts).getTime();
+  const endMs = new Date(end_ts).getTime();
+  if (!(endMs > startMs)) return res.status(400).json({ error: 'end_ts must be after start_ts' });
+  if (endMs - startMs > 8 * 3600 * 1000) return res.status(400).json({ error: 'A booking cannot exceed 8 hours' });
+  if (startMs < Date.now() - 5 * 60 * 1000) return res.status(400).json({ error: 'Cannot book a slot in the past' });
+  if (startMs > Date.now() + 30 * 24 * 3600 * 1000) return res.status(400).json({ error: 'Bookings open only 30 days ahead' });
+
+  if (supabase) {
+    const { data: resource } = await supabase.from('resources').select('id, kind, status, requires_cert').eq('id', resource_id).single();
+    if (!resource) return res.status(404).json({ error: 'Resource not found' });
+    if (resource.status !== 'ok') return res.status(409).json({ error: 'resource_unavailable', message: 'This machine is under maintenance.' });
+    if (resource.requires_cert && req.role === 'student') {
+      const { data: cert } = await supabase.from('certifications').select('id').eq('user_id', userId).eq('resource_kind', resource.kind).maybeSingle();
+      if (!cert) return res.status(403).json({ error: 'certification_required', message: 'Safety certification is required for this machine.' });
+    }
+    // Per-user cap on open bookings (anti-hoarding)
+    const { count } = await supabase.from('facility_bookings').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).in('status', ['pending', 'approved']).gte('end_ts', new Date().toISOString());
+    if ((count || 0) >= 5) return res.status(429).json({ error: 'booking_limit', message: 'You already have 5 active bookings.' });
+  }
 
   const newBooking = {
     id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -176,7 +195,8 @@ router.post('/bookings', requireAuth, async (req, res) => {
           candidates: candData || [],
           durationMin: Math.round((new Date(end_ts).getTime() - new Date(start_ts).getTime()) / (60 * 1000)),
           notBefore: new Date(end_ts),
-          existingBookings: allBookings || []
+          existingBookings: allBookings || [],
+          tzOffsetMin: IST_OFFSET_MIN
         });
 
         return res.status(409).json({
@@ -204,10 +224,19 @@ router.post('/bookings', requireAuth, async (req, res) => {
   res.status(201).json({ success: true, booking: newBooking });
 });
 
-// 5. PATCH /api/bookings/:id (Approve, reject, cancel)
+// 5. PATCH /api/bookings/:id (approve / reject / cancel / complete)
 const updateStatusSchema = z.object({
-  status: z.enum(['pending', 'approved', 'rejected', 'cancelled', 'completed', 'no_show'])
+  status: z.enum(['approved', 'rejected', 'cancelled', 'completed', 'no_show'])
 });
+
+// Allowed state transitions
+const TRANSITIONS = {
+  approved: ['pending'],
+  rejected: ['pending'],
+  cancelled: ['pending', 'approved'],
+  completed: ['approved'],
+  no_show: ['approved']
+};
 
 router.patch('/bookings/:id', requireAuth, async (req, res) => {
   const { id } = req.params;
@@ -218,101 +247,120 @@ router.patch('/bookings/:id', requireAuth, async (req, res) => {
 
   const { status } = parsed.data;
   const supabase = getSupabase();
+  if (!supabase) return res.json({ success: true, booking: { id, status } });
 
-  if (supabase) {
-    // If student cancelling, must be owner
-    if (status === 'cancelled' && req.role === 'student') {
-      const { data, error } = await supabase
-        .from('facility_bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', id)
-        .eq('user_id', req.user.id)
-        .select()
-        .single();
+  const { data: existing } = await supabase
+    .from('facility_bookings')
+    .select('id, user_id, status, resources:resource_id(lab_id, labs(incharge_id))')
+    .eq('id', id)
+    .single();
+  if (!existing) return res.status(404).json({ error: 'Booking not found' });
 
-      if (error || !data) return res.status(403).json({ error: 'Cannot cancel booking or not owner' });
-      return res.json({ success: true, booking: data });
+  const isOwner = existing.user_id === req.user.id;
+  const isStaff = ['faculty', 'lab_incharge', 'admin'].includes(req.role);
+
+  if (status === 'cancelled') {
+    if (!isOwner && !isStaff) return res.status(403).json({ error: 'Not allowed to cancel this booking' });
+  } else {
+    if (!isStaff) return res.status(403).json({ error: 'Insufficient permissions to update booking state' });
+    const inchargeId = existing.resources?.labs?.incharge_id;
+    if (req.role === 'lab_incharge' && inchargeId && inchargeId !== req.user.id) {
+      return res.status(403).json({ error: 'You are not the in-charge of this lab' });
     }
-
-    // Approving or rejecting requires faculty, lab_incharge, or admin
-    if (['approved', 'rejected', 'completed', 'no_show'].includes(status)) {
-      if (!['faculty', 'lab_incharge', 'admin'].includes(req.role)) {
-        return res.status(403).json({ error: 'Insufficient permissions to update booking state' });
-      }
-
-      const { data, error } = await supabase
-        .from('facility_bookings')
-        .update({ status })
-        .eq('id', id)
-        .select('*, profiles:user_id(full_name, email)')
-        .single();
-
-      if (error) return res.status(400).json({ error: error.message });
-
-      await logAudit({
-        actor_id: req.user.id,
-        action: `BOOKING_${status.toUpperCase()}`,
-        entity: 'facility_bookings',
-        entity_id: id,
-        meta: { new_status: status }
-      });
-
-      return res.json({ success: true, booking: data });
+    if (existing.user_id === req.user.id && req.role !== 'admin') {
+      return res.status(403).json({ error: 'You cannot approve your own booking' });
     }
   }
 
-  res.json({ success: true, booking: { id, status } });
+  if (!TRANSITIONS[status].includes(existing.status)) {
+    return res.status(409).json({ error: `Cannot change a ${existing.status} booking to ${status}` });
+  }
+
+  // Conditional update guards against double-approval races
+  const { data, error } = await supabase
+    .from('facility_bookings')
+    .update({ status })
+    .eq('id', id)
+    .eq('status', existing.status)
+    .select('*')
+    .single();
+
+  if (error || !data) return res.status(409).json({ error: 'Booking was modified by someone else. Refresh and retry.' });
+
+  await logAudit({
+    actor_id: req.user.id,
+    action: `BOOKING_${status.toUpperCase()}`,
+    entity: 'facility_bookings',
+    entity_id: id,
+    meta: { from: existing.status, to: status }
+  });
+
+  return res.json({ success: true, booking: data });
 });
 
-// 6. POST /api/bookings/:id/checkin
+// 6. POST /api/bookings/:id/checkin (owner only, approved, near start time)
 router.post('/bookings/:id/checkin', requireAuth, async (req, res) => {
   const { id } = req.params;
   const supabase = getSupabase();
+  if (!supabase) return res.json({ success: true, message: 'Check-in simulated' });
 
-  if (supabase) {
-    const { data, error } = await supabase
-      .from('facility_bookings')
-      .update({ checked_in_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
+  const { data: b } = await supabase.from('facility_bookings').select('*').eq('id', id).single();
+  if (!b) return res.status(404).json({ error: 'Booking not found' });
+  if (b.user_id !== req.user.id) return res.status(403).json({ error: 'Only the booking owner can check in' });
+  if (b.status !== 'approved') return res.status(409).json({ error: 'Only approved bookings can be checked in' });
 
-    if (error) return res.status(400).json({ error: error.message });
-    return res.json({ success: true, message: 'Checked in successfully', booking: data });
+  const now = Date.now();
+  if (now < new Date(b.start_ts).getTime() - 10 * 60 * 1000 || now > new Date(b.end_ts).getTime()) {
+    return res.status(409).json({ error: 'Check-in opens 10 minutes before the slot and closes at its end' });
   }
 
-  res.json({ success: true, message: 'Check-in simulated' });
+  const { data, error } = await supabase
+    .from('facility_bookings')
+    .update({ checked_in_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) return res.status(400).json({ error: 'Check-in failed' });
+  return res.json({ success: true, message: 'Checked in successfully', booking: data });
 });
 
-// 7. Backward compatible innovation routes for existing components
-router.get('/innovation/bookings', async (req, res) => {
+// 7. Booking list for the UI. Students see only their own; staff see all.
+router.get('/innovation/bookings', requireAuth, async (req, res) => {
   const supabase = getSupabase();
-  if (supabase) {
-    const { data } = await supabase
-      .from('facility_bookings')
-      .select('*, profiles:user_id(full_name, roll_no), resources:resource_id(name, lab_id, labs(name))')
-      .order('created_at', { ascending: false });
+  if (!supabase) return res.json({ success: true, bookings: [] });
 
-    if (data) {
-      const mapped = data.map(b => ({
-        id: b.id,
-        studentName: b.profiles?.full_name || 'Student Innovator',
-        studentRoll: b.profiles?.roll_no || 'CB.EN.U4AIE23045',
-        labId: b.resources?.lab_id || 'lab-fablab',
-        labName: b.resources?.labs?.name || 'Central Innovation Hub',
-        projectTitle: b.purpose || 'Laboratory Research & Fabrication',
-        projectType: b.resources?.name || 'Workstation',
-        requirements: b.resources?.name || 'Standard Equipment',
-        slotTime: `${new Date(b.start_ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(b.end_ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-        status: b.status,
-        submittedAt: new Date(b.created_at).toLocaleDateString(),
-        facultyAssigned: 'Dr. K. Swaminathan (AMR-FAC-209)'
-      }));
-      return res.json({ success: true, bookings: mapped });
-    }
-  }
+  const isStaff = ['faculty', 'lab_incharge', 'admin'].includes(req.role);
+  let q = supabase
+    .from('facility_bookings')
+    .select('*, profiles:user_id(full_name, roll_no), resources:resource_id(name, lab_id, labs(name, incharge_id))')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  if (!isStaff) q = q.eq('user_id', req.user.id);
 
-  res.json({ success: true, bookings: [] });
+  const { data, error } = await q;
+  if (error) return res.status(400).json({ error: 'Could not load bookings' });
+
+  const fmt = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  const bookings = (data || [])
+    .filter(b => req.role !== 'lab_incharge' || !b.resources?.labs?.incharge_id || b.resources.labs.incharge_id === req.user.id)
+    .map(b => ({
+      id: b.id,
+      studentName: b.profiles?.full_name || '',
+      studentRoll: isStaff ? (b.profiles?.roll_no || '') : '',
+      labId: b.resources?.lab_id || '',
+      labName: b.resources?.labs?.name || '',
+      projectTitle: b.purpose || '',
+      projectType: b.resources?.name || '',
+      requirements: b.resources?.name || '',
+      slotTime: `${fmt(b.start_ts)} - ${fmt(b.end_ts)}`,
+      start_ts: b.start_ts,
+      end_ts: b.end_ts,
+      status: b.status,
+      checkedIn: Boolean(b.checked_in_at),
+      submittedAt: new Date(b.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
+    }));
+  return res.json({ success: true, bookings });
 });
 
 export default router;

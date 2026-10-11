@@ -85,7 +85,15 @@ router.post('/', requireAuth, async (req, res) => {
 // 3. PATCH /api/jobs/:id (Staff update status & duration)
 router.patch('/:id', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
   const { id } = req.params;
-  const { status, est_minutes, lab_id } = req.body;
+  const patchParsed = z.object({
+    status: z.enum(['submitted', 'queued', 'approved', 'in_progress', 'done', 'rejected']).optional(),
+    est_minutes: z.number().int().positive().max(60 * 24).optional(),
+    lab_id: z.string().min(1).max(60).optional()
+  }).safeParse(req.body);
+  if (!patchParsed.success) {
+    return res.status(400).json({ error: 'Validation failed', details: patchParsed.error.issues });
+  }
+  const { status, est_minutes, lab_id } = patchParsed.data;
   const supabase = getSupabase();
 
   const updates = { updated_at: new Date().toISOString() };
@@ -118,9 +126,9 @@ router.patch('/:id', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'
 });
 
 // 4. POST /api/jobs/verify-content (Magic bytes server verification)
-router.post('/verify-content', async (req, res) => {
+router.post('/verify-content', requireAuth, async (req, res) => {
   const { kind, base64Header } = req.body;
-  if (!base64Header) {
+  if (typeof base64Header !== 'string' || base64Header.length > 70000) {
     return res.status(400).json({ error: 'base64Header is required for content inspection' });
   }
 

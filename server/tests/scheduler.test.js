@@ -170,3 +170,27 @@ describe('Earliest Available Resource Scheduler', () => {
     expect(result.alternatives.length).toBeLessThanOrEqual(3);
   });
 });
+
+describe('IST working hours (tzOffsetMin=330)', () => {
+  it('applies 08:30-17:30 in IST, not UTC', () => {
+    const r = findEarliestSlot({
+      candidates: [{ id: 'r1', name: 'P', kind: 'printer_3d', status: 'ok' }],
+      durationMin: 60,
+      notBefore: new Date('2026-10-12T00:00:00Z'), // 05:30 IST Monday
+      existingBookings: [],
+      tzOffsetMin: 330
+    });
+    expect(r.best.start).toBe('2026-10-12T03:00:00.000Z'); // 08:30 IST
+  });
+
+  it('never proposes a slot ending after 17:30 IST', () => {
+    const r = findEarliestSlot({
+      candidates: [{ id: 'r1', name: 'P', kind: 'printer_3d', status: 'ok' }],
+      durationMin: 120,
+      notBefore: new Date('2026-10-12T10:30:00Z'), // 16:00 IST
+      existingBookings: [],
+      tzOffsetMin: 330
+    });
+    expect(r.best.start).toBe('2026-10-13T03:00:00.000Z'); // next day 08:30 IST
+  });
+});

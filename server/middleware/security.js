@@ -28,7 +28,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 export const corsMiddleware = cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (e.g. server-to-server, curl, tests) or matching origins
-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
+    if (!origin || allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && !process.env.VERCEL)) {
       return callback(null, true);
     }
     callback(new Error(`CORS origin ${origin} not permitted.`));

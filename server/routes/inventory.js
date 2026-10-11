@@ -54,8 +54,22 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async 
   }
 
   try {
-    const formattedRows = items.map(item => ({
-      id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+    // Only the lab's own in-charge (or admin) may import for that lab
+    if (req.role === 'lab_incharge') {
+      const { data: lab } = await supabase.from('labs').select('incharge_id').eq('id', lab_id).single();
+      if (lab?.incharge_id && lab.incharge_id !== req.user.id) {
+        return res.status(403).json({ error: 'You are not the in-charge of this lab' });
+      }
+    }
+
+    const keyOf = (item) => (item.part_no || item.name).toLowerCase().replace(/\s+/g, ' ').trim();
+    // De-duplicate rows inside the uploaded file (last wins)
+    const byKey = new Map();
+    for (const item of items) byKey.set(keyOf(item), item);
+
+    const formattedRows = [...byKey.entries()].map(([key, item]) => ({
+      id: `inv-${lab_id}-${key.replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
+      item_key: key,
       lab_id,
       name: item.name,
       part_no: item.part_no || '',
@@ -69,7 +83,7 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async 
     // Upsert items into inventory_items
     const { error: upsertErr } = await supabase
       .from('inventory_items')
-      .upsert(formattedRows);
+      .upsert(formattedRows, { onConflict: 'lab_id,item_key' });
 
     if (upsertErr) {
       return res.status(400).json({ error: upsertErr.message });
@@ -95,17 +109,17 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async 
 
     res.json({
       success: true,
-      count: items.length,
-      message: `Successfully imported ${items.length} inventory records.`
+      count: formattedRows.length,
+      message: `Successfully imported ${formattedRows.length} inventory records.`
     });
   } catch (err) {
     console.error('Inventory import failed:', err.message);
-    res.status(500).json({ error: 'Failed to process inventory import', message: err.message });
+    res.status(500).json({ error: 'Failed to process inventory import' });
   }
 });
 
 // 3. Purchase / Equipment Requests (§7.2)
-router.get('/purchase-requests', requireAuth, async (req, res) => {
+router.get('/purchase-requests', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
   const supabase = getSupabase();
   if (supabase) {
     const { data } = await supabase

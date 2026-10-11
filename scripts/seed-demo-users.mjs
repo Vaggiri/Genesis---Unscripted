@@ -12,7 +12,12 @@ dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const demoPassword = process.env.DEMO_PASSWORD || 'AmritaYukti2026!';
+const demoPassword = process.env.DEMO_PASSWORD;
+
+if (!demoPassword || demoPassword.length < 12) {
+  console.error('❌ Error: set DEMO_PASSWORD (min 12 chars) in .env. No default is provided.');
+  process.exit(1);
+}
 
 if (!supabaseUrl || !serviceRoleKey || supabaseUrl.includes('YOUR-PROJECT')) {
   console.error('❌ Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be provided in .env to seed demo users.');
@@ -73,8 +78,7 @@ async function seed() {
         password: demoPassword,
         email_confirm: true,
         user_metadata: {
-          full_name: acc.full_name,
-          role: acc.role
+          full_name: acc.full_name
         }
       });
 

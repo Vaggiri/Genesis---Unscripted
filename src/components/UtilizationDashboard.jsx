@@ -27,6 +27,8 @@ export default function UtilizationDashboard() {
   }
 
   const d = data || {};
+  const peak = [...(d.hourDistribution || [])].sort((a, b) => b.count - a.count)[0];
+  const peakLabel = peak && peak.count > 0 ? peak.hour : '—';
 
   return (
     <div className="space-y-6">
@@ -41,9 +43,9 @@ export default function UtilizationDashboard() {
             Realtime capacity tracking derived from PostgreSQL facility bookings, idle gap intervals, and check-in verifications.
           </p>
         </div>
-        <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shrink-0">
-          <Activity className="w-3.5 h-3.5 text-amber-600" />
-          Sample Data Mode
+        <span className={`${d.isSampleData ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-emerald-100 text-emerald-900 border-emerald-300'} border text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shrink-0`}>
+          <Activity className="w-3.5 h-3.5" />
+          {d.isSampleData ? 'No bookings yet' : 'Live data · last 30 days'}
         </span>
       </div>
 
@@ -51,28 +53,25 @@ export default function UtilizationDashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="card-amrita p-5 space-y-1">
           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Average Utilization</span>
-          <div className="text-3xl font-extrabold text-amrita-maroon">{d.utilizationRate || 74}%</div>
-          <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5" /> +8.4% compared to last semester
-          </span>
+          <div className="text-3xl font-extrabold text-amrita-maroon">{d.utilizationRate ?? 0}%</div>
         </div>
 
         <div className="card-amrita p-5 space-y-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Booked Hours</span>
-          <div className="text-3xl font-extrabold text-gray-900">{d.totalBookings || 42} hrs</div>
-          <span className="text-xs text-gray-500 font-medium">Across 5 innovation labs</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Bookings</span>
+          <div className="text-3xl font-extrabold text-gray-900">{d.totalBookings ?? 0}</div>
+          <span className="text-xs text-gray-500 font-medium">In the last 30 days</span>
         </div>
 
         <div className="card-amrita p-5 space-y-1">
           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">No-Show / Auto-Release</span>
-          <div className="text-3xl font-extrabold text-rose-600">{d.noShowRate || 4}%</div>
+          <div className="text-3xl font-extrabold text-rose-600">{d.noShowRate ?? 0}%</div>
           <span className="text-xs text-gray-500 font-medium">Lazy 15-min gap release</span>
         </div>
 
         <div className="card-amrita p-5 space-y-1">
           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Peak Rush Window</span>
-          <div className="text-3xl font-extrabold text-amber-600">02:00 - 04:30 PM</div>
-          <span className="text-xs text-gray-500 font-medium">Post-lecture innovation surge</span>
+          <div className="text-3xl font-extrabold text-amber-600">{peakLabel}</div>
+          <span className="text-xs text-gray-500 font-medium">Busiest start hour</span>
         </div>
       </div>
 

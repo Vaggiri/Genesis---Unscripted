@@ -32,7 +32,7 @@ export function findEarliestSlot({
   existingBookings = [],
   maxDays = 7,
   limit = 4,
-  utc = true // Default to UTC for serverless/PostgreSQL standard timestamps
+  tzOffsetMin = 0 // working hours are interpreted in this UTC offset (campus passes 330 = IST)
 }) {
   if (!candidates || candidates.length === 0 || durationMin <= 0) {
     return { best: null, alternatives: [] };
@@ -68,22 +68,17 @@ export function findEarliestSlot({
       .sort((a, b) => a.start - b.start);
 
     for (let dayOffset = 0; dayOffset < maxDays; dayOffset++) {
-      const dayStart = new Date(startLimit);
-      const dayEnd = new Date(startLimit);
-
-      if (utc) {
-        dayStart.setUTCDate(dayStart.getUTCDate() + dayOffset);
-        dayStart.setUTCHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
-
-        dayEnd.setUTCDate(dayEnd.getUTCDate() + dayOffset);
-        dayEnd.setUTCHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
-      } else {
-        dayStart.setDate(dayStart.getDate() + dayOffset);
-        dayStart.setHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
-
-        dayEnd.setDate(dayEnd.getDate() + dayOffset);
-        dayEnd.setHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
-      }
+      const shift = tzOffsetMin * 60000;
+      const localBase = new Date(startLimit.getTime() + shift);
+      const dayStart = new Date(localBase);
+      const dayEnd = new Date(localBase);
+      dayStart.setUTCDate(dayStart.getUTCDate() + dayOffset);
+      dayStart.setUTCHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
+      dayEnd.setUTCDate(dayEnd.getUTCDate() + dayOffset);
+      dayEnd.setUTCHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
+      // convert back from campus-local to real UTC instants
+      dayStart.setTime(dayStart.getTime() - shift);
+      dayEnd.setTime(dayEnd.getTime() - shift);
 
       let windowCursor = ceilToGrid(new Date(Math.max(dayStart.getTime(), startLimit.getTime())), 15);
 

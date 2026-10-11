@@ -16,9 +16,10 @@ export async function requireAuth(req, res, next) {
   if (!supabase) {
     // If running in pure offline demo mode without Supabase connected:
     // Allow demo mock token for local testing if DEMO_OFFLINE=true
-    if (process.env.DEMO_OFFLINE === 'true') {
+    if (process.env.DEMO_OFFLINE === 'true' && process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
       req.user = { id: 'demo-user-id', email: 'demo@cb.amrita.edu' };
-      const demoRole = req.headers['x-demo-role'] || 'admin';
+      const allowedDemo = ['student', 'faculty', 'lab_incharge', 'admin'];
+      const demoRole = allowedDemo.includes(req.headers['x-demo-role']) ? req.headers['x-demo-role'] : 'student';
       req.profile = { id: req.user.id, full_name: 'Demo Admin', role: demoRole, preferred_language: 'en' };
       req.role = demoRole;
       return next();

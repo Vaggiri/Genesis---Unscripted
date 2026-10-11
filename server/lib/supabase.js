@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+// Server MUST use the service-role key (never fall back to the anon key).
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 let supabase = null;
 

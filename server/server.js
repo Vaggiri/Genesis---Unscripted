@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { getSupabase } from './lib/supabase.js';
 import { computeRoomStatus } from './lib/roomStatus.js';
 import { requireAuth, requireRole } from './middleware/auth.js';
+import { istNow } from './lib/time.js';
 import { corsMiddleware, helmetMiddleware, standardLimiter } from './middleware/security.js';
 
 // Route modules
@@ -18,6 +19,8 @@ import adminRouter from './routes/admin.js';
 dotenv.config();
 
 const app = express();
+// Behind Vercel/any reverse proxy: needed for correct client IP in rate limiting.
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
 // Security & Parsing Middlewares
@@ -99,12 +102,9 @@ router.put('/pages/:slug', requireAuth, requireRole('admin'), async (req, res) =
 // 4. Classrooms with Live Occupancy Calculation (Reads Supabase)
 router.get('/classrooms', async (req, res) => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const now = new Date();
-  const day = req.query.day || days[now.getDay()] || 'Monday';
-  
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const timeStr = req.query.time || `${hours}:${minutes}`;
+  const ist = istNow();
+  const day = days.includes(req.query.day) ? req.query.day : ist.day;
+  const timeStr = /^\d{2}:\d{2}$/.test(req.query.time || '') ? req.query.time : ist.time;
 
   const supabase = getSupabase();
   let classroomsList = [];
@@ -118,7 +118,7 @@ router.get('/classrooms', async (req, res) => {
         supabase.from('classrooms').select('*').order('id'),
         supabase.from('timetables').select('*'),
         supabase.from('occupancy_reports').select('*').eq('status', 'active'),
-        supabase.from('room_bookings').select('*').eq('booking_date', now.toISOString().split('T')[0])
+        supabase.from('room_bookings').select('*').eq('booking_date', ist.dateStr)
       ]);
 
       classroomsList = roomsRes.data || [];
@@ -157,7 +157,7 @@ router.get('/timetables', async (req, res) => {
 });
 
 // 6. Crowdsourced Occupancy Reports (Reads and writes Supabase directly)
-router.get('/reports', async (req, res) => {
+router.get('/reports', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
   const supabase = getSupabase();
   if (supabase) {
     const { data } = await supabase.from('occupancy_reports').select('*').order('created_at', { ascending: false });
