@@ -137,7 +137,7 @@ export async function classifyWithGemini(message, apiKey = process.env.GEMINI_AP
       return detected;
     }
     return 'unknown';
-  } catch (_err) {
+  } catch {
     console.warn('Gemini classification network error');
     return 'unknown';
   }

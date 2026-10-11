@@ -2,7 +2,7 @@
 ### Centralized Innovation Facility Booking & Utilization Portal
 
 > **Amrita Vishwa Vidyapeetham** — Genesis Hackathon Project  
-> A production-grade campus facility, prototyping equipment, and hardware inventory matching portal.  
+> A hackathon prototype hardened for campus pilot for facility, prototyping equipment, and hardware inventory matching.  
 > *(Derived from Sanskrit **Yukti** — Meaning Ingenuity, Skillful Innovation, and Creative Synergy)*
 
 ---
@@ -12,12 +12,12 @@ Engineering campuses house specialized prototyping equipment (3D printers, PCB m
 
 **Amrita Yukti** provides a unified, college-friendly solution:
 1. **Intelligent Hardware & Facility Discovery:** Search drawer stock by drawer label and physical location (e.g. `Drawer D-12, Bin 3`), with >30 day stale audit alerts.
-2. **Earliest-Available Interval Scheduler:** Given a job duration (e.g., a 180-minute 3D print), the algorithm finds the earliest open slot across all machines in constant time.
+2. **Earliest-Available Interval Scheduler:** The scheduler scans each active machine over up to 7 working days in 15-minute steps, skipping past existing bookings, so its cost grows with machines × days × bookings (small on campus-scale data). Correctness under concurrency is guaranteed by the PostgreSQL exclusion constraint, not by the algorithm.
 3. **Database-Level Concurrency Protection:** Postgres `btree_gist` exclusion constraints ensure zero double-bookings, returning `409 Conflict` with immediate alternative suggestions.
-4. **Direct-to-Storage File Intake:** Upload `.stl` models and `.zip` GerberCam archives directly to cloud storage, complete with client-side signed tetrahedra 3D volume analysis and magic-byte integrity inspection.
+4. **Client-Side File Inspection & Job Intake:** 3D model (.stl) and Gerber (.zip) files are inspected in the browser (volume/time estimate, magic-byte check); only the job metadata and estimates are saved to the database. Uploading originals to Supabase Storage is on the roadmap.
 5. **Real-Time Faculty & Lab In-Charge Desk:** Live cross-device synchronization powered by Supabase Realtime for instant approval notifications and check-ins.
 6. **Classroom & Space Radar:** Real-time occupancy tracker with timetable integration, crowdsourced vacancy reports, and faculty reservations.
-7. **Multilingual Voice Assistant:** Grounded, lightweight intent/slot assistant with speech-to-text in English, Tamil (தமிழ்), Hindi (हिन्दी), and Malayalam (മലയാളം).
+7. **Multilingual Voice Assistant:** A rule-based multilingual intent/slot assistant with an optional Gemini classification fallback and speech-to-text in English, Tamil (தமிழ்), Hindi (हिन्दी), and Malayalam (മലയാളം).
 
 ---
 
@@ -80,11 +80,11 @@ npm run dev:all
 
 ## 🧪 Testing & Verification
 
-* **Unit Tests (Scheduler):**
+* **Unit Tests:**
   ```bash
   npm test
   ```
-  Runs 7 test suites validating calendar fit, maintenance window skips, and edge conditions with Vitest.
+  Runs 18 unit tests across 3 suites validating scheduler calendar fit, analytics calculations, and Gemini chatbot fallback handling with Vitest.
 
 * **Concurrency Stress Test:**
   ```bash
@@ -126,3 +126,11 @@ All seeded demo accounts authenticate via Supabase Auth:
 * **Role Verification:** User roles are strictly derived from `public.profiles.role` on the server and guarded by PostgreSQL RLS.
 * **Service Role Hygiene:** `SUPABASE_SERVICE_ROLE_KEY` is only used server-side and never exposed to the client bundle.
 * **Input Validation & DoS Protection:** All CSV inputs and request bodies are validated with Zod, and rate limiters restrict aggressive API bursts.
+
+---
+
+## ⚠️ Known Limitations
+* **Client-Side File Analysis:** 3D model (.stl) and Gerber (.zip) files are inspected in the browser only (volume/time estimation, magic-byte check); original binary files are not uploaded or stored in cloud storage (uploading originals to Supabase Storage is on the roadmap).
+* **Header-Based Content Verification:** `/api/jobs/verify-content` trusts a client-sent header (authenticated and size-capped).
+* **Serverless Rate Limiting:** Rate limiting is in-memory per serverless instance rather than globally coordinated via Redis.
+* **Supabase Free Tier Inactivity:** Supabase free projects pause after about a week of idle time (must be resumed via the dashboard before demos).
