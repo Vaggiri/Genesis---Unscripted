@@ -346,6 +346,7 @@ router.get('/innovation/bookings', requireAuth, async (req, res) => {
     .filter(b => req.role !== 'lab_incharge' || !b.resources?.labs?.incharge_id || b.resources.labs.incharge_id === req.user.id)
     .map(b => ({
       id: b.id,
+      user_id: b.user_id,
       studentName: b.profiles?.full_name || '',
       studentRoll: isStaff ? (b.profiles?.roll_no || '') : '',
       labId: b.resources?.lab_id || '',

@@ -34,9 +34,9 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
     .slice(0, 2)
     .toUpperCase() || 'ST';
 
-  const myBookings = bookings.filter(b => 
-    b.user_id === user?.id || b.studentRoll === user?.roll_no || b.studentName === fullName
-  );
+  const myBookings = user?.role === 'student'
+    ? bookings
+    : bookings.filter(b => b.user_id === user?.id || (user?.roll_no && b.studentRoll === user.roll_no) || b.studentName === fullName);
 
   const handleCheckIn = async (bookingId) => {
     try {
