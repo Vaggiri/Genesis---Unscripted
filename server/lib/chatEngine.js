@@ -85,6 +85,64 @@ function classifyIntent(text) {
   return { intent: 'unknown' };
 }
 
+export const ALLOWED_INTENTS = [
+  'inventory_check',
+  'lab_info',
+  'suggest_slot',
+  'job_status',
+  'free_rooms',
+  'help',
+  'human_handoff'
+];
+
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+
+/**
+ * Classifies an unknown message using Gemini API with header-based key authentication.
+ */
+export async function classifyWithGemini(message, apiKey = process.env.GEMINI_API_KEY, model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL) {
+  if (!apiKey) return 'unknown';
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    const geminiRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{
+            text: `You are an intent classifier for a campus innovation facility portal. Classify the user input into EXACTLY ONE of the following intents: ${ALLOWED_INTENTS.join(', ')}. If none match, respond with unknown. Output ONLY the intent string with no quotes or extra text.`
+          }]
+        },
+        contents: [{
+          parts: [{
+            text: message
+          }]
+        }]
+      }),
+      signal: AbortSignal.timeout(4000)
+    });
+
+    if (!geminiRes.ok) {
+      console.warn(`Gemini classification failed (status ${geminiRes.status})`);
+      return 'unknown';
+    }
+
+    const data = await geminiRes.json();
+    const detected = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
+    if (ALLOWED_INTENTS.includes(detected)) {
+      return detected;
+    }
+    return 'unknown';
+  } catch {
+    console.warn('Gemini classification network error');
+    return 'unknown';
+  }
+}
+
 /**
  * Main chat engine pipeline.
  */
@@ -95,28 +153,9 @@ export async function processChatMessage({ message, preferredLanguage = 'en', us
 
   // Optional Gemini fallback if intent is unknown and GEMINI_API_KEY is configured
   if (intent === 'unknown' && process.env.GEMINI_API_KEY) {
-    try {
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Classify the following user message into EXACTLY ONE intent: [inventory_check, lab_info, suggest_slot, job_status, free_rooms, help, human_handoff]. Message: "${message}". Respond ONLY with the intent string.`
-            }]
-          }]
-        }),
-        signal: AbortSignal.timeout(4000)
-      });
-      if (geminiRes.ok) {
-        const data = await geminiRes.json();
-        const detected = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim().toLowerCase();
-        if (['inventory_check', 'lab_info', 'suggest_slot', 'job_status', 'free_rooms', 'help', 'human_handoff'].includes(detected)) {
-          intent = detected;
-        }
-      }
-    } catch {
-      // Graceful degradation: ignore Gemini errors and proceed
+    const geminiIntent = await classifyWithGemini(message);
+    if (ALLOWED_INTENTS.includes(geminiIntent)) {
+      intent = geminiIntent;
     }
   }
 
