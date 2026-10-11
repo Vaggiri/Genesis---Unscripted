@@ -23,12 +23,30 @@ export function useBookings(options = {}) {
 
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  const pollingRef = useRef(null);
+
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = setInterval(() => {
+      fetchBookings();
+    }, 20000);
+  }, [fetchBookings]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     fetchBookings();
 
     const supabase = getSupabaseClient();
-    if (!supabase) return;
+    if (!supabase) {
+      startPolling();
+      return () => stopPolling();
+    }
 
     // Supabase Realtime channel subscription for live sync between student & faculty devices
     const channel = supabase
@@ -46,12 +64,22 @@ export function useBookings(options = {}) {
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          stopPolling();
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`Supabase Realtime status ${status}, falling back to polling`);
+          startPolling();
+        }
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      stopPolling();
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [fetchBookings]);
+  }, [fetchBookings, startPolling, stopPolling]);
 
   const createBooking = async (bookingData) => {
     const result = await api.createBooking(bookingData);

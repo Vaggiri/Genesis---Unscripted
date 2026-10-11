@@ -1,6 +1,6 @@
 # Security & correctness fixes (post-review)
 
-Run `supabase/migrations/004_security_fixes.sql` in the Supabase SQL editor after 001–003.
+Run migrations in `supabase/migrations/` in order: `001_init.sql` → `002_rls.sql` → `003_seed_sample.sql` → `004_security_fixes.sql` → `005_realtime.sql`.
 
 | # | Fix | Where |
 |---|-----|-------|

@@ -55,10 +55,12 @@ DEMO_PASSWORD=YourSecureDemoPassword2026!
 ```
 
 ### 3. Setup Database Schema & Seed Data
-Execute the migration scripts located in `supabase/migrations/` in your Supabase SQL editor:
+Execute the migration scripts located in `supabase/migrations/` in your Supabase SQL editor (Run 001 → 005 in order):
 1. `001_init.sql` — Tables, indexes, and `btree_gist` exclusion constraint
 2. `002_rls.sql` — Row Level Security policies
 3. `003_seed_sample.sql` — Sample innovation labs, resources, and inventory items
+4. `004_security_fixes.sql` — Role escalation lock, signup restrictions, and staff write scoping
+5. `005_realtime.sql` — Enable Supabase Realtime publication on `facility_bookings`
 
 ### 4. Seed Demo Users
 Run the user seeding script to provision accounts with the configured `DEMO_PASSWORD`:
