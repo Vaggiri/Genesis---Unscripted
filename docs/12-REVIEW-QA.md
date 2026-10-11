@@ -57,8 +57,8 @@ This defense handbook equips the presentation team with short, honest, technical
 
 ## Group 4: Scheduling Algorithm & Concurrency
 
-#### Q14: Is the scheduling algorithm "constant time"?
-**A:** No. The scheduler scans active machines over up to 7 working days in 15-minute steps, skipping past existing bookings. Its complexity is $O(\text{machines} \times \text{days} \times \text{bookings})$. On campus scale (5–20 machines), it executes in <2 milliseconds.
+#### Q14: What is the computational complexity of the scheduling algorithm?
+**A:** The scheduler scans active machines over up to 7 working days in 15-minute steps, skipping past existing bookings. Its complexity is $O(\text{machines} \times \text{days} \times \text{bookings})$ (small on campus-scale data, running in <2 milliseconds). Correctness under concurrency is guaranteed by the PostgreSQL exclusion constraint, not by the algorithm.
 
 #### Q15: How do you guarantee zero double bookings under network races?
 **A:** Concurrency is guaranteed by PostgreSQL's `EXCLUDE USING gist (resource_id WITH =, tstzrange(start_ts, end_ts) WITH &&)`. The database kernel enforces atomicity. The scheduler only suggests optimal slots; the database guarantees correctness.

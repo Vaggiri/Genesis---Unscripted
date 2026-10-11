@@ -52,7 +52,7 @@ gantt
 ```
 
 ### Phase 1: Storage & Reliability Hardening (Months 1–2)
-1. **Supabase Storage Integration:** Implement authenticated direct-to-storage uploads using presigned URLs with server-side SHA-256 hash validation.
+1. **Supabase Storage Integration:** Implement authenticated cloud storage uploads using presigned URLs with server-side SHA-256 hash validation.
 2. **Distributed Global Rate Limiting:** Replace in-memory counters with `@upstash/ratelimit` backed by Redis edge KV.
 3. **Automated Notification Service:** Send instant email / SMS notifications to students upon booking approval or cancellation.
 
