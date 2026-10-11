@@ -1,26 +1,23 @@
 import React from 'react';
 import { 
-  Building2, 
   LogOut, 
   Database, 
   User, 
-  Sliders,
-  ShieldCheck,
   GraduationCap,
-  Users,
   BookOpen,
   Wrench,
   Lock,
-  Zap
+  Globe
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { getSupabaseConfig } from '../services/supabaseClient';
 
 export default function Navbar({ 
   currentUser, 
   onLogout, 
-  onOpenSupabaseModal,
-  onOpenAiModal
+  onOpenSupabaseModal
 }) {
+  const { t, i18n } = useTranslation();
   const config = getSupabaseConfig();
   const isSupabaseActive = Boolean(config.url && config.key);
 
@@ -28,12 +25,19 @@ export default function Navbar({
     switch (role) {
       case 'student': return GraduationCap;
       case 'faculty': return BookOpen;
+      case 'lab_incharge': return Wrench;
       case 'admin': return Lock;
       default: return User;
     }
   };
 
   const RoleIcon = currentUser ? getRoleIcon(currentUser.role) : User;
+
+  const handleLanguageChange = (e) => {
+    const lang = e.target.value;
+    i18n.changeLanguage(lang);
+    localStorage.setItem('amrita_yukti_lang', lang);
+  };
 
   return (
     <header className="amrita-header">
@@ -88,52 +92,55 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Right Tools: Cloud DB, AI Bridge, & Logout */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+        {/* Right Tools: Language Switcher, Cloud DB (Dev), & Session */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
 
-          {/* Cloud Database Indicator */}
-          <button
-            onClick={onOpenSupabaseModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.38rem 0.55rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: isSupabaseActive ? 'var(--status-available-bg)' : 'var(--bg-surface-alt)',
-              border: `1px solid ${isSupabaseActive ? 'var(--status-available-border)' : 'var(--border-light)'}`,
-              color: isSupabaseActive ? 'var(--status-available-text)' : 'var(--text-secondary)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              cursor: 'pointer'
-            }}
-            title="Supabase Database Status"
-          >
-            <Database size={15} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
-            <span className="hide-mobile">{isSupabaseActive ? 'DB Connected' : 'DB'}</span>
-          </button>
+          {/* Language Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', backgroundColor: 'var(--bg-surface-alt)', padding: '0.2rem 0.5rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}>
+            <Globe size={13} color="var(--amrita-maroon)" />
+            <select
+              value={i18n.language || 'en'}
+              onChange={handleLanguageChange}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                color: 'var(--text-main)',
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+            >
+              <option value="en">English</option>
+              <option value="ta">தமிழ்</option>
+              <option value="hi">हिन्दी</option>
+              <option value="ml">മലയാളം</option>
+            </select>
+          </div>
 
-          {/* AI Engine & ngrok Bridge Indicator */}
-          <button
-            onClick={onOpenAiModal}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              padding: '0.38rem 0.55rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: '#fffbeb',
-              border: '1px solid #fde68a',
-              color: '#92400e',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-            title="OmniRoute AI & ngrok Bridge Settings"
-          >
-            <Zap size={15} color="#d97706" />
-            <span className="hide-mobile">AI Bridge</span>
-          </button>
+          {/* Cloud Database Indicator (Dev Only) */}
+          {import.meta.env.DEV && onOpenSupabaseModal && (
+            <button
+              onClick={onOpenSupabaseModal}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.38rem 0.55rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: isSupabaseActive ? 'var(--status-available-bg)' : 'var(--bg-surface-alt)',
+                border: `1px solid ${isSupabaseActive ? 'var(--status-available-border)' : 'var(--border-light)'}`,
+                color: isSupabaseActive ? 'var(--status-available-text)' : 'var(--text-secondary)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+              title="Supabase Database Status (Dev Mode)"
+            >
+              <Database size={15} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
+              <span className="hide-mobile">{isSupabaseActive ? 'DB Connected' : 'DB'}</span>
+            </button>
+          )}
 
           {/* User Session Profile & Logout */}
           {currentUser ? (
@@ -152,7 +159,10 @@ export default function Navbar({
                 }}>
                 <RoleIcon size={14} color="var(--amrita-maroon)" />
                 <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>
-                  {currentUser.name}
+                  {currentUser.full_name || currentUser.name || 'User'}
+                </span>
+                <span className="badge badge-maroon" style={{ fontSize: '0.6rem', padding: '0.05rem 0.35rem', textTransform: 'capitalize' }}>
+                  {currentUser.role?.replace('_', ' ')}
                 </span>
               </div>
 

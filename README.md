@@ -1,32 +1,35 @@
 # 🏫 Amrita Yukti
 ### Centralized Innovation Facility Booking & Utilization Portal
 
-> **Amrita Vishwa Vidyapeetham** — Campus Innovation Hackathon Project  
-> An AI-driven cross-departmental laboratory, prototyping facility, and hardware inventory matching portal.  
+> **Amrita Vishwa Vidyapeetham** — Genesis Hackathon Project  
+> A production-grade campus facility, prototyping equipment, and hardware inventory matching portal.  
 > *(Derived from Sanskrit **Yukti** — Meaning Ingenuity, Skillful Innovation, and Creative Synergy)*
 
 ---
 
 ## 📌 Problem Statement Alignment
-Traditional campus portals require students to manually hunt across isolated departmental silos to figure out where specialized equipment, licensed software (e.g. Vivado, Altium, PyTorch GPU rigs), or 3D printers exist.
+Engineering campuses house specialized prototyping equipment (3D printers, PCB milling machines, pick-and-place stations, 100MHz DSOs) and specialized components across departmental silos. Students struggle to find available slots or drawer locations, while lab in-charges spend hours manually reviewing files and verifying component stocks.
 
-**Amrita Yukti** solves this by:
-1. **Natural Language Facility Matcher (Chat-First):** Students simply state their project goals or components needed (e.g., *"Training a YOLO drone perception model with PyTorch"* or *"Testing an analog op-amp circuit with a 100MHz DSO"*).
-2. **Autonomous Toolchain & Stock Verification:** The system matches the exact campus facility, verifies component inventory and machine availability, and recommends immediate open time slots.
-3. **Faculty & Lab In-Charge Approvals:** Real-time cross-tab request routing enabling lab supervisors to review, verify inventory, and approve slot allocations.
-4. **Campus Space Radar:** Interactive real-time occupancy heatmaps showing live equipment utilization and free desks.
+**Amrita Yukti** provides a unified, college-friendly solution:
+1. **Intelligent Hardware & Facility Discovery:** Search drawer stock by drawer label and physical location (e.g. `Drawer D-12, Bin 3`), with >30 day stale audit alerts.
+2. **Earliest-Available Interval Scheduler:** Given a job duration (e.g., a 180-minute 3D print), the algorithm finds the earliest open slot across all machines in constant time.
+3. **Database-Level Concurrency Protection:** Postgres `btree_gist` exclusion constraints ensure zero double-bookings, returning `409 Conflict` with immediate alternative suggestions.
+4. **Direct-to-Storage File Intake:** Upload `.stl` models and `.zip` GerberCam archives directly to cloud storage, complete with client-side signed tetrahedra 3D volume analysis and magic-byte integrity inspection.
+5. **Real-Time Faculty & Lab In-Charge Desk:** Live cross-device synchronization powered by Supabase Realtime for instant approval notifications and check-ins.
+6. **Classroom & Space Radar:** Real-time occupancy tracker with timetable integration, crowdsourced vacancy reports, and faculty reservations.
+7. **Multilingual Voice Assistant:** Grounded, lightweight intent/slot assistant with speech-to-text in English, Tamil (தமிழ்), Hindi (हिन्दी), and Malayalam (മലയാളം).
 
 ---
 
-## 🛠️ In-Depth Technical Stack
+## 🛠️ Architecture & Technical Stack
 
-For full technical specifications, see [**TECH_STACK.md**](./TECH_STACK.md).
+For complete technical specifications, see [**TECH_STACK.md**](./TECH_STACK.md).
 
-* **Frontend:** React 19 (`19.2.8`), Vite 8 (`8.3.4`), Vanilla CSS3 Design System with Amrita Identity Tokens, Lucide React, React-Markdown with GFM & breaks plugins.
-* **Backend:** Node.js (ESM), Express.js 5 (`5.3.0`), Reverse Proxy AI Gateway.
-* **Database & Cache:** Supabase (PostgreSQL 15) with an offline-resilient in-memory fallback and cross-tab window event synchronization.
-* **AI & NLP:** OmniRoute local LLM engine (`vag` model checkpoint on port `:20128`), OpenAI v1 compliant REST API.
-* **Networking & DevOps:** ngrok HTTP tunnel forwarding, Concurrently process orchestration, Oxlint linter, Vercel-ready deployment.
+* **Frontend:** React 19 (`19.2.8`), Vite 8 (`8.3.4`), Vanilla CSS3 with Amrita Maroon identity tokens (`#A4123F`), Lucide React icons, `react-i18next`.
+* **Backend:** Node.js (ESM), Express 5 (`5.3.0`), Helmet security headers, rate limiting, and Zod schema validation.
+* **Database & Auth:** Supabase PostgreSQL 15 with Row Level Security (RLS), Supabase Auth with `@cb.amrita.edu` college domain verification, and Supabase Realtime WebSocket events.
+* **Scheduling:** Earliest-available-resource interval scheduling algorithm (`server/lib/scheduler.js`) with UTC and timezone safety.
+* **3D & File Verification:** Client-side binary/ASCII STL parser using signed tetrahedra geometry + server-side magic-byte validator.
 
 ---
 
@@ -37,16 +40,34 @@ For full technical specifications, see [**TECH_STACK.md**](./TECH_STACK.md).
 npm install
 ```
 
-### 2. Environment Configuration
+### 2. Configure Environment Variables
 Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
+Fill in your Supabase project credentials:
 ```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 PORT=5000
-VITE_OMNIROUTE_BASE_URL=http://localhost:20128/v1
-VITE_OMNIROUTE_MODEL=vag
+DEMO_PASSWORD=YourSecureDemoPassword2026!
 ```
 
-### 3. Run Application
-Run backend API and frontend client concurrently:
+### 3. Setup Database Schema & Seed Data
+Execute the migration scripts located in `supabase/migrations/` in your Supabase SQL editor:
+1. `001_init.sql` — Tables, indexes, and `btree_gist` exclusion constraint
+2. `002_rls.sql` — Row Level Security policies
+3. `003_seed_sample.sql` — Sample innovation labs, resources, and inventory items
+
+### 4. Seed Demo Users
+Run the user seeding script to provision accounts with the configured `DEMO_PASSWORD`:
+```bash
+npm run seed:users
+```
+
+### 5. Run the Application
+Start both the Express backend and the Vite frontend dev server:
 ```bash
 npm run dev:all
 ```
@@ -55,8 +76,51 @@ npm run dev:all
 
 ---
 
-## 👥 User Roles & Demo Credentials
+## 🧪 Testing & Verification
 
-* **Student Innovator:** Roll No: `CB.EN.U4CSE23012` | Password: `student123`
-* **Faculty & Lab In-Charge:** Emp ID: `AMR-FAC-ECE04` | Password: `faculty123`
-* **Portal Administrator:** Username: `admin` | Password: `admin123`
+* **Unit Tests (Scheduler):**
+  ```bash
+  npm test
+  ```
+  Runs 7 test suites validating calendar fit, maintenance window skips, and edge conditions with Vitest.
+
+* **Concurrency Stress Test:**
+  ```bash
+  npm run test:concurrency
+  ```
+  Sends 20 simultaneous booking requests to prove database exclusion constraints and conflict handling.
+
+* **Security Rate Limiter Demo:**
+  ```bash
+  npm run demo:security
+  ```
+  Demonstrates Express rate limiting returning HTTP `429 Too Many Requests`.
+
+* **Static Code Analysis:**
+  ```bash
+  npm run lint
+  npm run build
+  ```
+
+---
+
+## 👥 Demo User Personas
+
+All seeded demo accounts authenticate via Supabase Auth:
+
+| Role | Email Identifier | Access Privileges |
+| :--- | :--- | :--- |
+| **Student Innovator** | `student.demo@cb.students.amrita.edu` | Equipment bookings, 3D/PCB job intake, voice assistant, inventory lookup |
+| **Faculty Member** | `faculty.demo@cb.amrita.edu` | Classroom reservation, student slot approvals, component orders |
+| **Lab In-Charge** | `incharge.demo@cb.amrita.edu` | 3D print/PCB queue management, CSV inventory import, job status transitions |
+| **Administrator** | `admin.demo@cb.amrita.edu` | User role management, timetable CSV bulk import, security audit log |
+
+*(Password for all seeded demo accounts is set via `DEMO_PASSWORD` in your `.env` file).*
+
+---
+
+## 🔒 Security Principles
+* **No Plain-Text Credentials:** Passwords are never stored in localStorage, client state, or source code.
+* **Role Verification:** User roles are strictly derived from `public.profiles.role` on the server and guarded by PostgreSQL RLS.
+* **Service Role Hygiene:** `SUPABASE_SERVICE_ROLE_KEY` is only used server-side and never exposed to the client bundle.
+* **Input Validation & DoS Protection:** All CSV inputs and request bodies are validated with Zod, and rate limiters restrict aggressive API bursts.

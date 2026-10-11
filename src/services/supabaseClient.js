@@ -1,35 +1,46 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Retrieve credentials from localStorage or environment variables
+// Retrieve credentials from environment variables (with optional dev fallback)
 export const getSupabaseConfig = () => {
-  const localUrl = localStorage.getItem('campussetu_supabase_url') || localStorage.getItem('campussync_supabase_url');
-  const localKey = localStorage.getItem('campussetu_supabase_key') || localStorage.getItem('campussync_supabase_key');
+  let devUrl = '';
+  let devKey = '';
+  if (import.meta.env.DEV) {
+    devUrl = localStorage.getItem('amrita_yukti_supabase_url') || '';
+    devKey = localStorage.getItem('amrita_yukti_supabase_key') || '';
+  }
 
-  const url = localUrl || import.meta.env.VITE_SUPABASE_URL || '';
-  const key = localKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+  const url = devUrl || import.meta.env.VITE_SUPABASE_URL || '';
+  const key = devKey || import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-  return { url, key, isCustom: Boolean(localUrl && localKey) };
+  return { url, key, isCustom: Boolean(devUrl && devKey) };
 };
 
 export const saveSupabaseConfig = (url, key) => {
-  if (url && key) {
-    localStorage.setItem('campussetu_supabase_url', url.trim());
-    localStorage.setItem('campussetu_supabase_key', key.trim());
-  } else {
-    localStorage.removeItem('campussetu_supabase_url');
-    localStorage.removeItem('campussetu_supabase_key');
-    localStorage.removeItem('campussync_supabase_url');
-    localStorage.removeItem('campussync_supabase_key');
+  if (import.meta.env.DEV) {
+    if (url && key) {
+      localStorage.setItem('amrita_yukti_supabase_url', url.trim());
+      localStorage.setItem('amrita_yukti_supabase_key', key.trim());
+    } else {
+      localStorage.removeItem('amrita_yukti_supabase_url');
+      localStorage.removeItem('amrita_yukti_supabase_key');
+    }
   }
 };
 
 let clientInstance = null;
 
 export const getSupabaseClient = () => {
+  if (clientInstance) return clientInstance;
+
   const { url, key } = getSupabaseConfig();
-  if (url && key) {
+  if (url && key && !url.includes('YOUR-PROJECT')) {
     try {
-      clientInstance = createClient(url, key);
+      clientInstance = createClient(url, key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true
+        }
+      });
       return clientInstance;
     } catch (e) {
       console.warn('Failed to initialize Supabase client:', e);
@@ -42,7 +53,7 @@ export const getSupabaseClient = () => {
 export const testSupabaseConnection = async (url, key) => {
   try {
     const testClient = createClient(url, key);
-    const { data, error } = await testClient.from('classrooms').select('id').limit(1);
+    const { error } = await testClient.from('classrooms').select('id').limit(1);
     if (error) {
       return { success: false, message: error.message };
     }

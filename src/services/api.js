@@ -2,255 +2,307 @@ import { getSupabaseClient } from './supabaseClient';
 
 const API_BASE = '/api';
 
-// Fallback helper to fetch JSON with timeout
-async function fetchWithFallback(url, options = {}) {
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.warn(`Fetch error for ${url}:`, err.message);
+/**
+ * Standard fetch helper that automatically attaches Supabase JWT Bearer token
+ * and handles errors transparently without silent fallbacks.
+ */
+async function apiRequest(endpoint, options = {}) {
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+  const headers = { ...options.headers };
+
+  if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  // Attach access token from Supabase session if available
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        headers['Authorization'] = `Bearer ${session.access_token}`;
+      }
+    } catch {
+      // Ignore session retrieval errors
+    }
+  }
+
+  const res = await fetch(url, { ...options, headers });
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const errorMsg = data?.message || data?.error || `HTTP error ${res.status}`;
+    const err = new Error(errorMsg);
+    // @ts-ignore
+    err.status = res.status;
+    // @ts-ignore
+    err.data = data;
     throw err;
   }
+
+  return data;
 }
 
 export const api = {
   // 1. Health & Status
   async getHealth() {
-    try {
-      return await fetchWithFallback(`${API_BASE}/health`);
-    } catch {
-      return { status: 'offline_mode', supabase_connected: false };
-    }
+    return await apiRequest('/health');
   },
 
-  // 2. Settings
+  // 2. Settings & CMS
   async getSettings() {
-    try {
-      return await fetchWithFallback(`${API_BASE}/settings`);
-    } catch {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data } = await supabase.from('portal_settings').select('*').single();
-        if (data) return data;
-      }
-      return {
-        id: 'campus_config',
-        campus_name: 'Amrita Vishwa Vidyapeetham — Coimbatore',
-        active_semester: 'Even Semester 2026',
-        flag_threshold: 2,
-        banner_message: '📢 Real-time Classroom & Lab Occupancy live. If an unscheduled batch has occupied a room, report it to alert peers!',
-        banner_active: true,
-        allow_student_reporting: true
-      };
-    }
+    return await apiRequest('/settings');
   },
 
   async updateSettings(settings) {
-    try {
-      return await fetchWithFallback(`${API_BASE}/settings`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      });
-    } catch {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        await supabase.from('portal_settings').upsert(settings);
-      }
-      return { success: true, settings };
-    }
+    return await apiRequest('/settings', {
+      method: 'PUT',
+      body: JSON.stringify(settings)
+    });
   },
 
-  // 3. Portal Pages (Admin CMS)
   async getPages() {
-    try {
-      return await fetchWithFallback(`${API_BASE}/pages`);
-    } catch {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data } = await supabase.from('portal_pages').select('*').order('display_order', { ascending: true });
-        if (data && data.length) return data;
-      }
-      return [
-        {
-          slug: 'classroom-occupancy',
-          title: 'Classroom & Lab Occupancy Locator',
-          subtitle: 'Live timetable cross-indexing, vacancy detection, and crowdsourced occupancy reporting',
-          badge: 'Live Space Matrix',
-          icon_name: 'Compass',
-          is_enabled: true
-        },
-        {
-          slug: 'facility-booking',
-          title: 'Innovation Facility & Lab Slot Booking',
-          subtitle: 'Conversational machine matching, drawer stock verification, and slot reservation',
-          badge: 'AI Allocation',
-          icon_name: 'Cpu',
-          is_enabled: true
-        },
-        {
-          slug: 'fablab-desk',
-          title: 'AI FabLab Intake Desk',
-          subtitle: 'Multi-turn conversational triage for 3D printing & PCB CNC fabrication work orders',
-          badge: 'AI Service Desk',
-          icon_name: 'Cpu',
-          is_enabled: true
-        },
-        {
-          slug: 'admin-portal',
-          title: 'Campus Setu Administrative Console',
-          subtitle: 'Zero-hardcode dynamic page configuration, timetable management, and report moderation',
-          badge: 'Admin Console',
-          icon_name: 'Sliders',
-          is_enabled: true
-        }
-      ];
-    }
+    return await apiRequest('/pages');
   },
 
   async updatePage(slug, data) {
-    return await fetchWithFallback(`${API_BASE}/pages/${slug}`, {
+    return await apiRequest(`/pages/${slug}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
     });
   },
 
-  // 4. Classrooms
+  // 3. Classrooms & Space Radar
   async getClassrooms(day, time) {
     const params = new URLSearchParams();
     if (day) params.append('day', day);
     if (time) params.append('time', time);
     const queryString = params.toString() ? `?${params.toString()}` : '';
-
-    try {
-      return await fetchWithFallback(`${API_BASE}/classrooms${queryString}`);
-    } catch (err) {
-      console.warn('Backend /api/classrooms failed, trying direct Supabase client or local fallback...', err.message);
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data } = await supabase.from('classrooms').select('*');
-        if (data) return { classrooms: data, simulated_context: { day: day || 'Monday', time: time || '10:00' } };
-      }
-      // Minimal offline fallback
-      return {
-        classrooms: [
-          {
-            id: 'AB1-101',
-            room_number: '101',
-            block: 'AB-1',
-            floor: 1,
-            capacity: 75,
-            room_type: 'lecture_hall',
-            amenities: ['ac', 'projector', 'power_sockets'],
-            status: 'available',
-            badgeText: 'Available Now'
-          },
-          {
-            id: 'AB1-204',
-            room_number: '204',
-            block: 'AB-1',
-            floor: 2,
-            capacity: 80,
-            room_type: 'lecture_hall',
-            amenities: ['ac', 'projector', 'power_sockets'],
-            is_flagged: true,
-            flag_count: 3,
-            flag_reason: 'Reported occupied ≥ 2 times this week for unscheduled remedial coding sessions.',
-            status: 'flagged_occupied',
-            badgeText: 'Flagged: Frequently Taken Unscheduled',
-            flagAlert: {
-              is_flagged: true,
-              batch: 'CSE-B (3rd Year)',
-              department: 'Computer Science & Engineering',
-              purpose: 'Unscheduled Remedial Coding Practice',
-              count: 3
-            }
-          }
-        ],
-        simulated_context: { day: day || 'Monday', time: time || '10:00' }
-      };
-    }
+    return await apiRequest(`/classrooms${queryString}`);
   },
 
-  // 5. Submit Crowdsourced Occupancy Report
-  async submitReport(reportData) {
-    try {
-      return await fetchWithFallback(`${API_BASE}/reports`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(reportData)
-      });
-    } catch {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const { data, error } = await supabase.from('occupancy_reports').insert(reportData).select().single();
-        if (!error) return { success: true, report: data };
-      }
-      return { success: true, report: reportData, is_permanently_flagged: true };
-    }
-  },
-
-  // 6. Reports List
-  async getReports() {
-    try {
-      return await fetchWithFallback(`${API_BASE}/reports`);
-    } catch {
-      return [];
-    }
-  },
-
-  // 7. Timetables
   async getTimetables(roomId) {
-    try {
-      const url = roomId ? `${API_BASE}/timetables?roomId=${roomId}` : `${API_BASE}/timetables`;
-      return await fetchWithFallback(url);
-    } catch {
-      return [];
-    }
+    const query = roomId ? `?roomId=${roomId}` : '';
+    return await apiRequest(`/timetables${query}`);
   },
 
-  // 8. Admin Operations
-  async adminAddClassroom(classroom) {
-    return await fetchWithFallback(`${API_BASE}/admin/classrooms`, {
+  async getReports() {
+    return await apiRequest('/reports');
+  },
+
+  async submitReport(reportData) {
+    return await apiRequest('/reports', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reportData)
+    });
+  },
+
+  // 4. Facility Bookings & Resources (§4.2)
+  async getResources(lab) {
+    const query = lab ? `?lab=${lab}` : '';
+    return await apiRequest(`/resources${query}`);
+  },
+
+  async getAvailability(resourceId, date) {
+    const params = new URLSearchParams();
+    if (resourceId) params.append('resourceId', resourceId);
+    if (date) params.append('date', date);
+    return await apiRequest(`/availability?${params.toString()}`);
+  },
+
+  async suggestBooking(payload) {
+    return await apiRequest('/bookings/suggest', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async createBooking(bookingData) {
+    return await apiRequest('/bookings', {
+      method: 'POST',
+      body: JSON.stringify(bookingData)
+    });
+  },
+
+  async updateBookingStatus(id, status) {
+    return await apiRequest(`/bookings/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  },
+
+  async checkInBooking(id) {
+    return await apiRequest(`/bookings/${id}/checkin`, {
+      method: 'POST'
+    });
+  },
+
+  async getInnovationBookings() {
+    return await apiRequest('/innovation/bookings');
+  },
+
+  // 5. Inventory & Drawer Stock (§5.1)
+  async getInventory(params = {}) {
+    const q = new URLSearchParams();
+    if (params.lab) q.append('lab', params.lab);
+    if (params.search) q.append('search', params.search);
+    if (params.category) q.append('category', params.category);
+    const str = q.toString() ? `?${q.toString()}` : '';
+    return await apiRequest(`/inventory${str}`);
+  },
+
+  async importInventory(importData) {
+    return await apiRequest('/inventory/import', {
+      method: 'POST',
+      body: JSON.stringify(importData)
+    });
+  },
+
+  async getPurchaseRequests() {
+    return await apiRequest('/inventory/purchase-requests');
+  },
+
+  async createPurchaseRequest(payload) {
+    return await apiRequest('/inventory/purchase-requests', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async updatePurchaseRequest(id, status) {
+    return await apiRequest(`/inventory/purchase-requests/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status })
+    });
+  },
+
+  // 6. Digital Fabrication Jobs (§5.2)
+  async getJobs() {
+    return await apiRequest('/jobs');
+  },
+
+  async createJob(jobData) {
+    return await apiRequest('/jobs', {
+      method: 'POST',
+      body: JSON.stringify(jobData)
+    });
+  },
+
+  async updateJob(id, updates) {
+    return await apiRequest(`/jobs/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  },
+
+  async verifyFileContent(kind, base64Header) {
+    return await apiRequest('/jobs/verify-content', {
+      method: 'POST',
+      body: JSON.stringify({ kind, base64Header })
+    });
+  },
+
+  // 7. Faculty Free-Room Booking (§7.1)
+  async getFreeRooms(date, slot) {
+    const params = new URLSearchParams();
+    if (date) params.append('date', date);
+    if (slot) params.append('slot', slot);
+    return await apiRequest(`/rooms/free?${params.toString()}`);
+  },
+
+  async bookRoom(bookingData) {
+    return await apiRequest('/room-bookings', {
+      method: 'POST',
+      body: JSON.stringify(bookingData)
+    });
+  },
+
+  async getMyRoomBookings() {
+    return await apiRequest('/room-bookings/mine');
+  },
+
+  async cancelRoomBooking(id) {
+    return await apiRequest(`/room-bookings/${id}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // 8. Chatbot (§6)
+  async sendChatMessage(message, preferredLanguage = 'en') {
+    return await apiRequest('/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, preferredLanguage })
+    });
+  },
+
+  // 9. Analytics & Utilization (§8.1)
+  async getUtilization(from, to) {
+    const params = new URLSearchParams();
+    if (from) params.append('from', from);
+    if (to) params.append('to', to);
+    const q = params.toString() ? `?${params.toString()}` : '';
+    return await apiRequest(`/analytics/utilization${q}`);
+  },
+
+  // 10. Admin Console
+  async adminAddClassroom(classroom) {
+    return await apiRequest('/admin/classrooms', {
+      method: 'POST',
       body: JSON.stringify(classroom)
     });
   },
 
   async adminDeleteClassroom(id) {
-    return await fetchWithFallback(`${API_BASE}/admin/classrooms/${id}`, {
+    return await apiRequest(`/admin/classrooms/${id}`, {
       method: 'DELETE'
     });
   },
 
   async adminUnflagClassroom(id) {
-    return await fetchWithFallback(`${API_BASE}/admin/classrooms/${id}/unflag`, {
+    return await apiRequest(`/admin/classrooms/${id}/unflag`, {
       method: 'POST'
     });
   },
 
   async adminAddTimetable(entry) {
-    return await fetchWithFallback(`${API_BASE}/admin/timetables`, {
+    return await apiRequest('/admin/timetables', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(entry)
     });
   },
 
   async adminDeleteTimetable(id) {
-    return await fetchWithFallback(`${API_BASE}/admin/timetables/${id}`, {
+    return await apiRequest(`/admin/timetables/${id}`, {
       method: 'DELETE'
     });
   },
 
-  async adminResolveReport(id, action) {
-    return await fetchWithFallback(`${API_BASE}/admin/reports/${id}/resolve`, {
+  async adminImportTimetables(entries) {
+    return await apiRequest('/admin/timetables/import', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries })
+    });
+  },
+
+  async adminResolveReport(id, action) {
+    return await apiRequest(`/admin/reports/${id}/resolve`, {
+      method: 'POST',
       body: JSON.stringify({ action })
     });
+  },
+
+  async adminGetUsers() {
+    return await apiRequest('/admin/users');
+  },
+
+  async adminUpdateUserRole(id, role) {
+    return await apiRequest(`/admin/users/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role })
+    });
+  },
+
+  async adminGetAuditLog() {
+    return await apiRequest('/admin/audit-log');
   }
 };

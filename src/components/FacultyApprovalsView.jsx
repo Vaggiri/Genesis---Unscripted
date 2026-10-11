@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   XCircle, 
@@ -11,10 +11,47 @@ import {
   Building,
   Cpu
 } from 'lucide-react';
+import { api } from '../services/api';
 
-export default function FacultyApprovalsView({ bookings, onApprove, onReject, facultyUser }) {
-  const pendingList = bookings.filter(b => b.status === 'pending');
-  const pastList = bookings.filter(b => b.status !== 'pending');
+export default function FacultyApprovalsView({ 
+  bookings: externalBookings, 
+  onApprove: externalOnApprove, 
+  onReject: externalOnReject, 
+  facultyUser,
+  currentUser 
+}) {
+  const [internalBookings, setInternalBookings] = useState([]);
+
+  useEffect(() => {
+    if (!externalBookings) {
+      api.getInnovationBookings()
+        .then(res => setInternalBookings(res?.bookings || []))
+        .catch(err => console.warn('Approvals fetch error:', err));
+    }
+  }, [externalBookings]);
+
+  const bookingsList = externalBookings || internalBookings;
+
+  const handleApprove = async (id) => {
+    if (externalOnApprove) {
+      externalOnApprove(id);
+    } else {
+      await api.updateBookingStatus(id, 'approved');
+      setInternalBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'approved' } : b));
+    }
+  };
+
+  const handleReject = async (id) => {
+    if (externalOnReject) {
+      externalOnReject(id);
+    } else {
+      await api.updateBookingStatus(id, 'rejected');
+      setInternalBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'rejected' } : b));
+    }
+  };
+
+  const pendingList = bookingsList.filter(b => b.status === 'pending');
+  const pastList = bookingsList.filter(b => b.status !== 'pending');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -94,7 +131,7 @@ export default function FacultyApprovalsView({ bookings, onApprove, onReject, fa
                 <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                   <button
                     type="button"
-                    onClick={() => onApprove(req.id)}
+                    onClick={() => handleApprove(req.id)}
                     style={{
                       padding: '0.5rem 1rem',
                       borderRadius: 'var(--radius-sm)',
@@ -115,7 +152,7 @@ export default function FacultyApprovalsView({ bookings, onApprove, onReject, fa
 
                   <button
                     type="button"
-                    onClick={() => onReject(req.id)}
+                    onClick={() => handleReject(req.id)}
                     style={{
                       padding: '0.5rem 1rem',
                       borderRadius: 'var(--radius-sm)',

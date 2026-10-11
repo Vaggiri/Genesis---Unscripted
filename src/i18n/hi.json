@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "title": "अमृता युक्ति",
+    "subtitle": "परिसर नवाचार और स्पेस रडार",
+    "login": "साइन इन",
+    "logout": "साइन आउट",
+    "role": "भूमिका",
+    "studentPortal": "छात्र हब",
+    "facultyPortal": "संकाय पोर्टल",
+    "inchargePortal": "लैब इन-चार्ज",
+    "adminConsole": "प्रशासक कंसोल",
+    "spaceRadar": "स्पेस रडार",
+    "language": "भाषा"
+  },
+  "portal": {
+    "welcome": "स्वागत है",
+    "innovationFacility": "नवाचार सुविधा",
+    "bookSlot": "मशीन स्लॉट बुक करें",
+    "inventorySearch": "कंपोनेंट स्टॉक रडार",
+    "myBookings": "मेरे आरक्षण",
+    "jobIntake": "डिजिटल फैब्रिकेशन ऑर्डर",
+    "vacantClassrooms": "कक्षा रडार",
+    "markVacant": "कक्षा को खाली चिह्नित करें",
+    "reserveRoom": "खाली कक्षा आरक्षित करें",
+    "orderComponents": "सामग्री अनुरोध",
+    "auditLog": "सुरक्षा ऑडिट लॉग",
+    "utilization": "उपयोग विश्लेषण",
+    "sampleData": "नमूना डेटा"
+  },
+  "status": {
+    "pending": "स्वीकृति लंबित",
+    "approved": "स्वीकृत",
+    "rejected": "अस्वीकृत",
+    "cancelled": "रद्द",
+    "in_progress": "प्रगति पर है",
+    "done": "पूर्ण",
+    "available": "उपलब्ध",
+    "occupied": "व्यस्त",
+    "flagged": "अनधिकृत उपयोग"
+  },
+  "common": {
+    "submit": "जमा करें",
+    "cancel": "रद्द करें",
+    "confirm": "पुष्टि करें",
+    "search": "खोजें...",
+    "loading": "लोड हो रहा है...",
+    "error": "त्रुटि",
+    "success": "सफलता",
+    "talkToHuman": "सीधे संपर्क करें",
+    "voiceAssistant": "आवाज़ सहायक"
+  }
+}

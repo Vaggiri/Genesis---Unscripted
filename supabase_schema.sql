@@ -1,86 +1,97 @@
 -- =========================================================================
--- Campus Setu - Unified Campus E-Governance & Space Radar
+-- Amrita Yukti — Unified Supabase Database Schema (Production Ready)
 -- Amrita Vishwa Vidyapeetham — Coimbatore Campus
+-- =========================================================================
 -- Target: Supabase Cloud SQL Editor (PostgreSQL with RLS & Realtime)
+-- Safe migration: Uses CREATE TABLE IF NOT EXISTS without destructive DROPs
 -- =========================================================================
 
 -- 1. Enable required extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "btree_gist";
 
--- 2. Cleanly reset existing tables to avoid column mismatches from previous schemas
-DROP TABLE IF EXISTS public.occupancy_reports CASCADE;
-DROP TABLE IF EXISTS public.timetables CASCADE;
-DROP TABLE IF EXISTS public.classrooms CASCADE;
-DROP TABLE IF EXISTS public.portal_pages CASCADE;
-DROP TABLE IF EXISTS public.portal_settings CASCADE;
+-- 2. PROFILES TABLE (linked to auth.users)
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'faculty', 'lab_incharge', 'admin')),
+    full_name TEXT NOT NULL DEFAULT '',
+    roll_no TEXT DEFAULT '',
+    emp_id TEXT DEFAULT '',
+    department TEXT DEFAULT 'CSE',
+    batch TEXT DEFAULT '2023-2027',
+    preferred_language TEXT DEFAULT 'en' CHECK (preferred_language IN ('en', 'ta', 'hi', 'ml')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- 3. CLASSROOMS TABLE
-CREATE TABLE public.classrooms (
-    id TEXT PRIMARY KEY,                       -- e.g. 'AB1-101', 'AB3-305'
-    room_number TEXT NOT NULL,                -- e.g. '101', '305', 'LAB-2'
-    block TEXT NOT NULL,                      -- 'AB-1', 'AB-2', 'AB-3', 'CIR'
-    floor INTEGER NOT NULL DEFAULT 1,         -- 0 (Ground), 1, 2, 3, 4
+CREATE TABLE IF NOT EXISTS public.classrooms (
+    id TEXT PRIMARY KEY,
+    room_number TEXT NOT NULL,
+    block TEXT NOT NULL,
+    floor INTEGER NOT NULL DEFAULT 1,
     capacity INTEGER NOT NULL DEFAULT 60,
-    room_type TEXT NOT NULL DEFAULT 'lecture_hall', -- 'lecture_hall', 'lab_computer', 'lab_electronics', 'seminar_hall', 'project_room'
+    room_type TEXT NOT NULL DEFAULT 'lecture_hall',
     amenities JSONB DEFAULT '["ac", "projector", "power_sockets"]'::jsonb,
-    is_flagged BOOLEAN DEFAULT FALSE,         -- Permanently flagged if reported >= threshold (e.g. 2 times in a week)
+    is_flagged BOOLEAN DEFAULT FALSE,
     flag_reason TEXT DEFAULT NULL,
     flag_count INTEGER DEFAULT 0,
-    flagged_batch TEXT DEFAULT NULL,          -- e.g. 'CSE-B 3rd Yr'
-    flagged_department TEXT DEFAULT NULL,     -- e.g. 'Computer Science & Engineering'
-    flagged_purpose TEXT DEFAULT NULL,        -- e.g. 'Extra Remedial Coding Session'
+    flagged_batch TEXT DEFAULT NULL,
+    flagged_department TEXT DEFAULT NULL,
+    flagged_purpose TEXT DEFAULT NULL,
     last_flagged_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. MASTER TIMETABLE SCHEDULE TABLE
-CREATE TABLE public.timetables (
+-- 4. MASTER TIMETABLES TABLE
+CREATE TABLE IF NOT EXISTS public.timetables (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
-    day_of_week TEXT NOT NULL,                -- 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
-    start_time TIME NOT NULL,                 -- e.g. '08:45:00'
-    end_time TIME NOT NULL,                   -- e.g. '09:35:00'
-    slot_number INTEGER NOT NULL,             -- 1 to 8
-    subject_name TEXT NOT NULL,               -- e.g. 'Data Structures & Algorithms', 'Deep Learning Lab'
-    subject_code TEXT DEFAULT '',             -- e.g. '21CSE201'
-    department TEXT NOT NULL,                 -- 'CSE', 'ECE', 'AI & DS', 'MECH', 'CIVIL', 'MATH'
-    batch TEXT NOT NULL,                      -- e.g. 'B.Tech CSE-A (Sem 4)', 'AI-DS 2024-28'
+    day_of_week TEXT NOT NULL,
+    start_time TIME NOT NULL,
+    end_time TIME NOT NULL,
+    slot_number INTEGER NOT NULL,
+    subject_name TEXT NOT NULL,
+    subject_code TEXT DEFAULT '',
+    department TEXT NOT NULL,
+    batch TEXT NOT NULL,
     is_lab BOOLEAN DEFAULT FALSE,
     faculty_name TEXT DEFAULT 'Faculty In-Charge',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. CROWDSOURCED OCCUPANCY REPORTS TABLE
-CREATE TABLE public.occupancy_reports (
+-- 5. OCCUPANCY REPORTS TABLE
+CREATE TABLE IF NOT EXISTS public.occupancy_reports (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
-    report_type TEXT NOT NULL DEFAULT 'unscheduled_occupancy', -- 'unscheduled_occupancy', 'class_cancelled_empty'
-    reported_batch TEXT NOT NULL,             -- e.g. 'CSE-B 3rd Yr'
-    reported_department TEXT NOT NULL,        -- e.g. 'Computer Science & Engineering'
+    report_type TEXT NOT NULL DEFAULT 'unscheduled_occupancy',
+    reported_batch TEXT NOT NULL,
+    reported_department TEXT NOT NULL,
     is_lab_class BOOLEAN DEFAULT FALSE,
-    purpose TEXT NOT NULL,                    -- 'Remedial Test', 'Internal Hackathon Prep', 'Extra Lecture'
-    occupancy_level TEXT DEFAULT 'Full',      -- 'Full', 'Moderate', 'Empty'
+    purpose TEXT NOT NULL,
+    occupancy_level TEXT DEFAULT 'Full',
+    reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
     reporter_name TEXT DEFAULT 'Anonymous Student',
     reporter_roll_no TEXT DEFAULT '',
     reporter_role TEXT DEFAULT 'student',
-    status TEXT DEFAULT 'active',             -- 'active', 'verified_by_admin', 'dismissed', 'resolved'
+    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'verified_by_admin', 'dismissed', 'resolved')),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. PORTAL DYNAMIC CONFIGURATION & CMS
-CREATE TABLE public.portal_settings (
+-- 6. PORTAL CONFIGURATION
+CREATE TABLE IF NOT EXISTS public.portal_settings (
     id TEXT PRIMARY KEY DEFAULT 'campus_config',
     campus_name TEXT DEFAULT 'Amrita Vishwa Vidyapeetham — Coimbatore',
     active_semester TEXT DEFAULT 'Even Semester 2026',
-    flag_threshold INTEGER DEFAULT 2,         -- >= 2 reports per week permanently flags room
+    flag_threshold INTEGER DEFAULT 2,
     banner_message TEXT DEFAULT '📢 Real-time Classroom & Lab Occupancy live. Submit reports for unannounced room takeovers.',
     banner_active BOOLEAN DEFAULT TRUE,
     allow_student_reporting BOOLEAN DEFAULT TRUE,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE public.portal_pages (
+CREATE TABLE IF NOT EXISTS public.portal_pages (
     slug TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     subtitle TEXT NOT NULL,
@@ -92,89 +103,272 @@ CREATE TABLE public.portal_pages (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. ENABLE ROW LEVEL SECURITY (RLS) WITH FULL PUBLIC PERMISSIONS
+-- 7. LABS & RESOURCES
+CREATE TABLE IF NOT EXISTS public.labs (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    block TEXT NOT NULL,
+    floor INTEGER NOT NULL DEFAULT 1,
+    category TEXT NOT NULL,
+    incharge_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    capacity INTEGER NOT NULL DEFAULT 30,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.resources (
+    id TEXT PRIMARY KEY,
+    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('printer_3d', 'pcb_mill', 'laser', 'lathe', 'welding', 'workstation', 'bench')),
+    status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'maintenance')),
+    requires_cert BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.certifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    resource_kind TEXT NOT NULL,
+    passed_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (user_id, resource_kind)
+);
+
+-- 8. INVENTORY ITEMS & IMPORTS
+CREATE TABLE IF NOT EXISTS public.inventory_items (
+    id TEXT PRIMARY KEY,
+    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    part_no TEXT DEFAULT '',
+    category TEXT DEFAULT 'General',
+    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+    location TEXT DEFAULT '',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_imports (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lab_id TEXT REFERENCES public.labs(id) ON DELETE SET NULL,
+    uploaded_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    filename TEXT NOT NULL,
+    row_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. JOBS (3D print, PCB, Laser, etc.)
+CREATE TABLE IF NOT EXISTS public.jobs (
+    id TEXT PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    kind TEXT NOT NULL CHECK (kind IN ('print_3d', 'pcb', 'laser', 'other')),
+    title TEXT NOT NULL,
+    file_path TEXT,
+    file_name TEXT,
+    file_ext TEXT,
+    detected_by TEXT,
+    est_minutes INTEGER DEFAULT 60,
+    est_material_g NUMERIC DEFAULT 0,
+    params JSONB DEFAULT '{}'::jsonb,
+    status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'queued', 'approved', 'in_progress', 'done', 'rejected')),
+    lab_id TEXT REFERENCES public.labs(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. FACILITY BOOKINGS (With btree_gist exclusion constraint)
+CREATE TABLE IF NOT EXISTS public.facility_bookings (
+    id TEXT PRIMARY KEY,
+    resource_id TEXT NOT NULL REFERENCES public.resources(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    job_id TEXT REFERENCES public.jobs(id) ON DELETE SET NULL,
+    start_ts TIMESTAMPTZ NOT NULL,
+    end_ts TIMESTAMPTZ NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'no_show', 'completed')),
+    checked_in_at TIMESTAMPTZ DEFAULT NULL,
+    purpose TEXT DEFAULT '',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    CONSTRAINT facility_bookings_no_overlap EXCLUDE USING gist (
+        resource_id WITH =,
+        tstzrange(start_ts, end_ts) WITH &&
+    ) WHERE (status IN ('pending', 'approved'))
+);
+
+-- 11. ROOM BOOKINGS
+CREATE TABLE IF NOT EXISTS public.room_bookings (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
+    faculty_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    booking_date DATE NOT NULL,
+    slot_number INTEGER NOT NULL,
+    purpose TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'cancelled', 'blocked')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (room_id, booking_date, slot_number)
+);
+
+-- 12. PURCHASE / EQUIPMENT REQUESTS
+CREATE TABLE IF NOT EXISTS public.purchase_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+    item TEXT NOT NULL,
+    qty INTEGER NOT NULL CHECK (qty > 0),
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'ordered')),
+    requested_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 13. AUDIT LOG
+CREATE TABLE IF NOT EXISTS public.audit_log (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    entity TEXT NOT NULL,
+    entity_id TEXT,
+    meta JSONB DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 14. Trigger on auth.users for profile creation
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name, role, preferred_language)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    COALESCE(new.raw_user_meta_data->>'role', 'student'),
+    COALESCE(new.raw_user_meta_data->>'preferred_language', 'en')
+  )
+  ON CONFLICT (id) DO NOTHING;
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- 15. Helper functions for RLS
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role = 'admin'
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.is_staff()
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid() AND role IN ('faculty', 'lab_incharge', 'admin')
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- 16. Enable RLS
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timetables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.occupancy_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portal_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.portal_pages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.labs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.certifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_imports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.facility_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.room_bookings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
 
--- Allow unrestricted read & write for portal operations
-CREATE POLICY "Public full access classrooms" ON public.classrooms FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access timetables" ON public.timetables FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access occupancy_reports" ON public.occupancy_reports FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access portal_settings" ON public.portal_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public full access portal_pages" ON public.portal_pages FOR ALL USING (true) WITH CHECK (true);
+-- 17. RLS Policies
+DROP POLICY IF EXISTS "profiles_select" ON public.profiles;
+CREATE POLICY "profiles_select" ON public.profiles FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid() OR public.is_admin()) WITH CHECK (id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "profiles_admin_all" ON public.profiles;
+CREATE POLICY "profiles_admin_all" ON public.profiles FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- 8. SAFE REALTIME PUBLICATION ENABLEMENT (Prevents duplicate errors)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'classrooms'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.classrooms;
-    END IF;
+DROP POLICY IF EXISTS "classrooms_read" ON public.classrooms;
+CREATE POLICY "classrooms_read" ON public.classrooms FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "classrooms_admin_write" ON public.classrooms;
+CREATE POLICY "classrooms_admin_write" ON public.classrooms FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'occupancy_reports'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.occupancy_reports;
-    END IF;
+DROP POLICY IF EXISTS "timetables_read" ON public.timetables;
+CREATE POLICY "timetables_read" ON public.timetables FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "timetables_admin_write" ON public.timetables;
+CREATE POLICY "timetables_admin_write" ON public.timetables FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'timetables'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.timetables;
-    END IF;
+DROP POLICY IF EXISTS "occupancy_reports_read" ON public.occupancy_reports;
+CREATE POLICY "occupancy_reports_read" ON public.occupancy_reports FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "occupancy_reports_insert" ON public.occupancy_reports;
+CREATE POLICY "occupancy_reports_insert" ON public.occupancy_reports FOR INSERT TO authenticated WITH CHECK (reporter_id = auth.uid() OR reporter_id IS NULL);
+DROP POLICY IF EXISTS "occupancy_reports_admin_mod" ON public.occupancy_reports;
+CREATE POLICY "occupancy_reports_admin_mod" ON public.occupancy_reports FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_publication_tables 
-        WHERE pubname = 'supabase_realtime' AND tablename = 'portal_settings'
-    ) THEN
-        ALTER PUBLICATION supabase_realtime ADD TABLE public.portal_settings;
-    END IF;
-END $$;
+DROP POLICY IF EXISTS "settings_read" ON public.portal_settings;
+CREATE POLICY "settings_read" ON public.portal_settings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "settings_admin_write" ON public.portal_settings;
+CREATE POLICY "settings_admin_write" ON public.portal_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
--- 9. SEED INITIAL AMRITA DATA
-INSERT INTO public.portal_settings (id, campus_name, active_semester, flag_threshold, banner_message, banner_active)
-VALUES (
-    'campus_config',
-    'Amrita Vishwa Vidyapeetham — Coimbatore',
-    'Even Semester 2026',
-    2,
-    '📢 Real-time Classroom & Lab Occupancy live. Submit reports for unannounced room takeovers.',
-    TRUE
-);
+DROP POLICY IF EXISTS "pages_read" ON public.portal_pages;
+CREATE POLICY "pages_read" ON public.portal_pages FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "pages_admin_write" ON public.portal_pages;
+CREATE POLICY "pages_admin_write" ON public.portal_pages FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
-INSERT INTO public.classrooms (id, room_number, block, floor, capacity, room_type, amenities, is_flagged, flag_count, flagged_batch, flagged_department, flagged_purpose)
-VALUES 
-('AB1-101', '101', 'AB-1', 1, 75, 'lecture_hall', '["ac", "projector", "power_sockets", "smart_board"]'::jsonb, false, 0, null, null, null),
-('AB1-102', '102', 'AB-1', 1, 75, 'lecture_hall', '["projector", "power_sockets"]'::jsonb, false, 0, null, null, null),
-('AB1-204', '204', 'AB-1', 2, 80, 'lecture_hall', '["ac", "projector", "power_sockets", "mic_audio"]'::jsonb, true, 3, 'CSE-B (3rd Year)', 'Computer Science & Engineering', 'Unscheduled Remedial Coding Session'),
-('AB1-205', '205', 'AB-1', 2, 60, 'lecture_hall', '["projector", "power_sockets"]'::jsonb, false, 1, null, null, null),
-('AB2-108', '108', 'AB-2', 1, 40, 'project_room', '["ac", "power_sockets", "smart_board", "wifi_6"]'::jsonb, false, 0, null, null, null),
-('AB2-210', '210 (IoT Lab)', 'AB-2', 2, 50, 'lab_electronics', '["ac", "power_sockets", "oscilloscope", "pcb_stations"]'::jsonb, false, 0, null, null, null),
-('AB3-301', '301', 'AB-3', 3, 90, 'lecture_hall', '["ac", "projector", "power_sockets", "tiered_seating"]'::jsonb, false, 0, null, null, null),
-('AB3-305', '305 (AI Lab)', 'AB-3', 3, 60, 'lab_computer', '["ac", "high_gpu_workstations", "power_sockets", "lan_gigabit"]'::jsonb, false, 1, null, null, null),
-('AB3-402', '402', 'AB-3', 4, 70, 'lecture_hall', '["projector", "power_sockets"]'::jsonb, false, 0, null, null, null),
-('CIR-SEM1', 'Seminar Hall 1', 'CIR', 1, 150, 'seminar_hall', '["ac", "dual_projectors", "mic_audio", "surround_sound"]'::jsonb, false, 0, null, null, null);
+DROP POLICY IF EXISTS "labs_read" ON public.labs;
+CREATE POLICY "labs_read" ON public.labs FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "labs_write" ON public.labs;
+CREATE POLICY "labs_write" ON public.labs FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
 
-INSERT INTO public.timetables (room_id, day_of_week, start_time, end_time, slot_number, subject_name, subject_code, department, batch, is_lab, faculty_name)
-VALUES
-('AB1-101', 'Monday', '08:45:00', '09:35:00', 1, 'Data Structures & Algorithms', '21CSE201', 'CSE', 'B.Tech CSE-A (Sem 4)', false, 'Dr. K. Swaminathan'),
-('AB1-101', 'Monday', '09:40:00', '10:30:00', 2, 'Discrete Mathematics', '21MAT204', 'Mathematics', 'B.Tech CSE-A (Sem 4)', false, 'Prof. S. Ranganathan'),
-('AB1-101', 'Monday', '10:45:00', '11:35:00', 3, 'Computer Architecture', '21CSE205', 'CSE', 'B.Tech CSE-A (Sem 4)', false, 'Dr. V. Priya'),
-('AB1-204', 'Monday', '13:30:00', '16:15:00', 6, 'Cloud Computing Lab', '21CSE318', 'CSE', 'B.Tech CSE-B (Sem 6)', true, 'Dr. M. Suresh'),
-('AB3-305', 'Monday', '08:45:00', '11:35:00', 1, 'Deep Learning & Neural Networks Lab', '21AID302', 'AI & DS', 'B.Tech AI-DS (Sem 6)', true, 'Dr. Anand Kumar'),
-('AB3-305', 'Monday', '13:30:00', '15:20:00', 5, 'Natural Language Processing', '21AID305', 'AI & DS', 'B.Tech AI-DS (Sem 6)', false, 'Dr. Deepa S.'),
-('AB2-210', 'Monday', '10:45:00', '12:35:00', 3, 'Embedded Systems & Sensor Lab', '21ECE304', 'ECE', 'B.Tech ECE-A (Sem 6)', true, 'Dr. Ramesh Babu');
+DROP POLICY IF EXISTS "resources_read" ON public.resources;
+CREATE POLICY "resources_read" ON public.resources FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "resources_write" ON public.resources;
+CREATE POLICY "resources_write" ON public.resources FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
 
-INSERT INTO public.portal_pages (slug, title, subtitle, badge, icon_name, is_enabled, display_order)
-VALUES
-('classroom-occupancy', 'Classroom & Lab Occupancy', 'Real-time timetable index, room vacancies, and crowdsourced reporting', 'Live Matrix', 'Compass', true, 1),
-('parent-epass', 'Parent Hostel Visit & Gate E-Pass', 'Digital pre-clearance, 1-click warden approvals & dynamic QR fast lane', 'E-Governance', 'ShieldCheck', true, 2),
-('fablab-desk', 'FabLab Service Request Desk', 'Conversational AI triage for 3D printing and PCB fabrication work orders', 'Makerspace', 'Cpu', true, 3),
-('admin-portal', 'Campus Setu Admin Desk', 'Dynamic configuration, timetable overrides, and crowd report moderation', 'Admin Only', 'Sliders', true, 4);
+DROP POLICY IF EXISTS "certifications_read" ON public.certifications;
+CREATE POLICY "certifications_read" ON public.certifications FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+DROP POLICY IF EXISTS "certifications_write" ON public.certifications;
+CREATE POLICY "certifications_write" ON public.certifications FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+
+DROP POLICY IF EXISTS "inventory_read" ON public.inventory_items;
+CREATE POLICY "inventory_read" ON public.inventory_items FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "inventory_write" ON public.inventory_items;
+CREATE POLICY "inventory_write" ON public.inventory_items FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+
+DROP POLICY IF EXISTS "jobs_select" ON public.jobs;
+CREATE POLICY "jobs_select" ON public.jobs FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+DROP POLICY IF EXISTS "jobs_insert" ON public.jobs;
+CREATE POLICY "jobs_insert" ON public.jobs FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "jobs_update" ON public.jobs;
+CREATE POLICY "jobs_update" ON public.jobs FOR UPDATE TO authenticated USING (user_id = auth.uid() OR public.is_staff()) WITH CHECK (user_id = auth.uid() OR public.is_staff());
+
+DROP POLICY IF EXISTS "facility_bookings_select" ON public.facility_bookings;
+CREATE POLICY "facility_bookings_select" ON public.facility_bookings FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+DROP POLICY IF EXISTS "facility_bookings_insert" ON public.facility_bookings;
+CREATE POLICY "facility_bookings_insert" ON public.facility_bookings FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+DROP POLICY IF EXISTS "facility_bookings_update" ON public.facility_bookings;
+CREATE POLICY "facility_bookings_update" ON public.facility_bookings FOR UPDATE TO authenticated USING (user_id = auth.uid() OR public.is_staff()) WITH CHECK (user_id = auth.uid() OR public.is_staff());
+
+DROP POLICY IF EXISTS "room_bookings_select" ON public.room_bookings;
+CREATE POLICY "room_bookings_select" ON public.room_bookings FOR SELECT TO authenticated USING (true);
+DROP POLICY IF EXISTS "room_bookings_insert" ON public.room_bookings;
+CREATE POLICY "room_bookings_insert" ON public.room_bookings FOR INSERT TO authenticated WITH CHECK (faculty_id = auth.uid() OR public.is_admin());
+DROP POLICY IF EXISTS "room_bookings_update_delete" ON public.room_bookings;
+CREATE POLICY "room_bookings_update_delete" ON public.room_bookings FOR ALL TO authenticated USING (faculty_id = auth.uid() OR public.is_admin()) WITH CHECK (faculty_id = auth.uid() OR public.is_admin());
+
+DROP POLICY IF EXISTS "purchase_requests_select" ON public.purchase_requests;
+CREATE POLICY "purchase_requests_select" ON public.purchase_requests FOR SELECT TO authenticated USING (requested_by = auth.uid() OR public.is_staff());
+DROP POLICY IF EXISTS "purchase_requests_insert" ON public.purchase_requests;
+CREATE POLICY "purchase_requests_insert" ON public.purchase_requests FOR INSERT TO authenticated WITH CHECK (public.is_staff());
+DROP POLICY IF EXISTS "purchase_requests_update" ON public.purchase_requests;
+CREATE POLICY "purchase_requests_update" ON public.purchase_requests FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+DROP POLICY IF EXISTS "audit_log_select" ON public.audit_log;
+CREATE POLICY "audit_log_select" ON public.audit_log FOR SELECT TO authenticated USING (public.is_admin());
+DROP POLICY IF EXISTS "audit_log_insert" ON public.audit_log;
+CREATE POLICY "audit_log_insert" ON public.audit_log FOR INSERT TO authenticated WITH CHECK (true);

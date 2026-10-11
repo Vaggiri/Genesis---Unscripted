@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "title": "Amrita Yukti",
+    "subtitle": "Campus Innovation & Space Radar",
+    "login": "Sign In",
+    "logout": "Sign Out",
+    "role": "Role",
+    "studentPortal": "Student Hub",
+    "facultyPortal": "Faculty Portal",
+    "inchargePortal": "Lab In-Charge",
+    "adminConsole": "Admin Console",
+    "spaceRadar": "Space Radar",
+    "language": "Language"
+  },
+  "portal": {
+    "welcome": "Welcome back",
+    "innovationFacility": "Innovation Facility Hub",
+    "bookSlot": "Book Machine Slot",
+    "inventorySearch": "Drawer Component Stock",
+    "myBookings": "My Reservations",
+    "jobIntake": "FabLab Work Orders",
+    "vacantClassrooms": "Classroom Radar",
+    "markVacant": "Mark My Class Vacant",
+    "reserveRoom": "Reserve Free Classroom",
+    "orderComponents": "Request Material",
+    "auditLog": "Security Audit Log",
+    "utilization": "Facility Utilization",
+    "sampleData": "Sample Data"
+  },
+  "status": {
+    "pending": "Pending Approval",
+    "approved": "Approved / Reserved",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled",
+    "in_progress": "In Progress",
+    "done": "Completed",
+    "available": "Available Now",
+    "occupied": "Occupied",
+    "flagged": "Flagged Unscheduled"
+  },
+  "common": {
+    "submit": "Submit",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "search": "Search...",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "talkToHuman": "Talk to Person",
+    "voiceAssistant": "Voice Assistant"
+  }
+}

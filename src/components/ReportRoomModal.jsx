@@ -17,8 +17,6 @@ export default function ReportRoomModal({
   classroom, 
   onReportSubmitted 
 }) {
-  if (!isOpen || !classroom) return null;
-
   const [reportType, setReportType] = useState('unscheduled_occupancy');
   const [reportedBatch, setReportedBatch] = useState('');
   const [reportedDepartment, setReportedDepartment] = useState('Computer Science & Engineering');
@@ -29,6 +27,8 @@ export default function ReportRoomModal({
   const [reporterRollNo, setReporterRollNo] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resultAlert, setResultAlert] = useState(null);
+
+  if (!isOpen || !classroom) return null;
 
   const departments = [
     'Computer Science & Engineering',

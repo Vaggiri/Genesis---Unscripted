@@ -1,52 +1,88 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  CheckCircle2, 
   Building2, 
   Calendar, 
   UserCheck, 
-  Clock, 
-  Settings, 
   User, 
-  Bot, 
   Sparkles, 
-  BookOpen,
-  LogOut,
-  ArrowLeft
+  ShoppingCart, 
+  Package, 
+  Plus, 
+  LogOut 
 } from 'lucide-react';
 import FacultyApprovalsView from './FacultyApprovalsView';
 import ClassroomOccupancyModule from './ClassroomOccupancyModule';
 import LabDirectoryView from './LabDirectoryView';
-import SmartLabFinderBot from './SmartLabFinderBot';
+import VoiceChatBot from './VoiceChatBot';
+import InventorySearch from './InventorySearch';
+import { api } from '../services/api';
 
-export default function FacultyPortal({ user, simulatedContext, bookings = [], onApprove, onReject, onNewBooking, onLogout }) {
-  const [activeTab, setActiveTab] = useState('approvals'); // 'approvals' | 'classrooms' | 'bot' | 'directory' | 'profile'
-  const [previousTab, setPreviousTab] = useState(null);
+export default function FacultyPortal({ user, simulatedContext, bookings = [], onApprove, onReject, onNewBooking: _onNewBooking, onLogout }) {
+  const [activeTab, setActiveTab] = useState('classrooms'); // 'classrooms' | 'approvals' | 'bot' | 'directory' | 'inventory' | 'orders' | 'profile'
+  const [purchaseRequests, setPurchaseRequests] = useState([]);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [orderItem, setOrderItem] = useState('');
+  const [orderQty, setOrderQty] = useState(10);
+  const [orderReason, setOrderReason] = useState('');
+  const [submittingOrder, setSubmittingOrder] = useState(false);
 
-  const handleTabChange = (newTab) => {
-    if (newTab !== activeTab) {
-      setPreviousTab(activeTab);
-      setActiveTab(newTab);
+  const fullName = user?.full_name || user?.name || 'Faculty Member';
+  const empId = user?.emp_id || 'AMR-FACULTY';
+  const dept = user?.department || 'Engineering Faculty';
+
+  const initials = fullName
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() || 'FC';
+
+  const loadOrders = async () => {
+    try {
+      const data = await api.getPurchaseRequests();
+      setPurchaseRequests(data || []);
+    } catch (err) {
+      console.warn('Failed to fetch purchase requests:', err);
     }
   };
 
-  const handleBack = () => {
-    if (previousTab) {
-      const prev = previousTab;
-      setPreviousTab(null);
-      setActiveTab(prev);
-    } else {
-      setActiveTab('approvals');
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const handleCreateOrder = async (e) => {
+    e.preventDefault();
+    if (!orderItem) return;
+    setSubmittingOrder(true);
+    try {
+      await api.createPurchaseRequest({
+        lab_id: 'lab-pcb-eda',
+        item: orderItem,
+        qty: Number(orderQty),
+        reason: orderReason || 'Faculty lab component requisition'
+      });
+      setShowOrderModal(false);
+      setOrderItem('');
+      setOrderReason('');
+      await loadOrders();
+    } catch (err) {
+      alert(`Requisition failed: ${err.message}`);
+    } finally {
+      setSubmittingOrder(false);
     }
   };
 
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
 
   const facultyTabs = [
-    { id: 'approvals', label: 'Approvals Queue', shortLabel: 'Approvals', icon: UserCheck, count: pendingCount },
-    { id: 'classrooms', label: 'Classrooms Radar', shortLabel: 'Classrooms', icon: Calendar },
-    { id: 'bot', label: 'AI Matcher', shortLabel: 'AI Match', icon: Sparkles },
-    { id: 'directory', label: 'Labs & Stock', shortLabel: 'Labs', icon: Building2 },
-    { id: 'profile', label: 'Profile & Settings', shortLabel: 'Profile', icon: User }
+    { id: 'classrooms', label: 'Space Radar & Room Booking', shortLabel: 'Classrooms', icon: Calendar },
+    { id: 'approvals', label: 'Student Slot Approvals', shortLabel: 'Approvals', icon: UserCheck, count: pendingCount },
+    { id: 'inventory', label: 'Drawer Component Stock', shortLabel: 'Components', icon: Package },
+    { id: 'orders', label: 'Order Lab Components', shortLabel: 'Requisitions', icon: ShoppingCart },
+    { id: 'bot', label: 'AI Voice Assistant', shortLabel: 'AI Assistant', icon: Sparkles },
+    { id: 'directory', label: 'Labs & Resources', shortLabel: 'Labs', icon: Building2 },
+    { id: 'profile', label: 'Profile', shortLabel: 'Profile', icon: User }
   ];
 
   return (
@@ -77,285 +113,258 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
             boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)',
             flexShrink: 0
           }}>
-            KS
+            {initials}
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
-                {user?.name || 'Dr. K. Swaminathan'}
+                {fullName}
               </h2>
               <span className="badge badge-maroon" style={{ fontSize: '0.675rem' }}>
-                Faculty & Lab In-Charge
+                Faculty Mentor
               </span>
             </div>
             <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-              ID: <strong>{user?.emp_id || 'AMR-FAC-209'}</strong> • {user?.department || 'Computer Science & Engineering'}
+              Emp ID: <strong>{empId}</strong> • {dept}
             </div>
           </div>
         </div>
 
-        {/* Quick Privilege Badges & Log Out */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-          <div className="hide-mobile" style={{ display: 'flex', gap: '0.5rem', fontSize: '0.75rem' }}>
-            <span style={{ padding: '0.3rem 0.6rem', backgroundColor: 'var(--status-available-bg)', color: 'var(--status-available-text)', border: '1px solid var(--status-available-border)', borderRadius: '6px', fontWeight: 700 }}>
-              Classroom Reservation
-            </span>
-            <span style={{ padding: '0.3rem 0.6rem', backgroundColor: 'var(--amrita-maroon-bg)', color: 'var(--amrita-maroon)', border: '1px solid var(--amrita-maroon-border)', borderRadius: '6px', fontWeight: 700 }}>
-              Lab Sign-off
-            </span>
-          </div>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
-            onClick={onLogout}
-            className="hide-mobile"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '5px',
-              padding: '0.35rem 0.75rem',
-              borderRadius: '8px',
-              border: '1px solid #fee2e2',
-              backgroundColor: '#fff5f5',
-              color: '#b91c1c',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              cursor: 'pointer'
-            }}
-            title="Log Out of Session"
+            onClick={() => setShowOrderModal(true)}
+            className="btn-amrita"
+            style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            <LogOut size={13} />
-            <span>Log Out</span>
+            <Plus size={14} />
+            <span>Order Lab Components</span>
           </button>
         </div>
       </div>
 
-      {/* Modern Desktop Segmented Tab Navigation Bar */}
-      <nav className="nav-segmented-bar" aria-label="Faculty Navigation">
-        {facultyTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+      {/* Navigation Tab Bar */}
+      <div style={{
+        display: 'flex',
+        gap: '0.4rem',
+        overflowX: 'auto',
+        paddingBottom: '0.5rem',
+        marginBottom: '1rem',
+        borderBottom: '1px solid var(--border-light)'
+      }}>
+        {facultyTabs.map((t) => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.id;
           return (
             <button
-              key={tab.id}
-              type="button"
-              onClick={() => handleTabChange(tab.id)}
-              className={`nav-segment-item ${isActive ? 'active' : ''}`}
+              key={t.id}
+              onClick={() => setActiveTab(t.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.45rem 0.85rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: isActive ? 'var(--amrita-maroon)' : 'var(--bg-surface)',
+                color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                border: `1px solid ${isActive ? 'var(--amrita-maroon)' : 'var(--border-light)'}`,
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                transition: 'all 0.15s ease'
+              }}
             >
-              <Icon size={16} />
-              <span>{tab.label}</span>
-              {typeof tab.count === 'number' && (
-                <span className="nav-counter-pill">{tab.count}</span>
+              <Icon size={15} />
+              <span>{t.label}</span>
+              {t.count > 0 && (
+                <span style={{
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'var(--amrita-maroon)',
+                  color: '#ffffff',
+                  fontSize: '0.65rem',
+                  padding: '0.05rem 0.35rem',
+                  borderRadius: '10px'
+                }}>
+                  {t.count}
+                </span>
               )}
             </button>
           );
         })}
-      </nav>
+      </div>
 
-      {/* Universal Page Back Navigation Button */}
-      {(activeTab !== 'approvals' || previousTab) && (
-        <div style={{ 
-          marginBottom: '1rem', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '0.5rem'
-        }}>
-          <button
-            type="button"
-            onClick={handleBack}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '0.45rem 0.95rem',
-              borderRadius: '8px',
-              backgroundColor: '#ffffff',
-              border: '1px solid var(--border-light)',
-              color: 'var(--text-main)',
-              fontSize: '0.825rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-              transition: 'all 0.15s ease'
-            }}
-            title="Go back to previous page"
-          >
-            <ArrowLeft size={16} color="var(--amrita-maroon)" />
-            <span>Back {previousTab ? `to ${facultyTabs.find(t => t.id === previousTab)?.label || 'Previous'}` : 'to Approvals Queue'}</span>
-          </button>
+      {/* Main Tab Panels */}
+      {activeTab === 'classrooms' && (
+        <ClassroomOccupancyModule
+          simulatedContext={simulatedContext}
+          user={user}
+        />
+      )}
 
-          <span className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            Viewing {facultyTabs.find(t => t.id === activeTab)?.label}
-          </span>
+      {activeTab === 'approvals' && (
+        <FacultyApprovalsView
+          currentUser={user}
+          bookings={bookings}
+          onApprove={onApprove}
+          onReject={onReject}
+        />
+      )}
+
+      {activeTab === 'inventory' && (
+        <InventorySearch />
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="card-amrita p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                <ShoppingCart className="w-5 h-5 text-amrita-maroon" />
+                Laboratory Component Requisitions
+              </h3>
+              <p className="text-xs text-gray-500">
+                Request consumable ICs, sensors, breadboards, or oscilloscope probes for your lab classes.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowOrderModal(true)}
+              className="btn-amrita px-3.5 py-2 text-xs font-bold flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" /> New Requisition
+            </button>
+          </div>
+
+          {purchaseRequests.length === 0 ? (
+            <div className="p-10 text-center text-gray-400 text-sm">
+              No component requisitions submitted. Click "New Requisition" to request components.
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-200">
+              {purchaseRequests.map((pr) => (
+                <div key={pr.id} className="py-3 flex items-center justify-between text-sm">
+                  <div>
+                    <h5 className="font-bold text-gray-900">{pr.item} ({pr.qty} units)</h5>
+                    <p className="text-xs text-gray-500">Reason: {pr.reason || 'Laboratory course requirement'}</p>
+                  </div>
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase ${
+                    pr.status === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                    pr.status === 'ordered' ? 'bg-blue-100 text-blue-800' :
+                    pr.status === 'rejected' ? 'bg-rose-100 text-rose-800' :
+                    'bg-amber-100 text-amber-800'
+                  }`}>
+                    {pr.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Active Tab View */}
-      <div>
+      {activeTab === 'bot' && (
+        <VoiceChatBot
+          currentUser={user}
+          onBookSlot={() => setActiveTab('classrooms')}
+        />
+      )}
 
-        {/* 1. Student Lab Booking Approvals Queue */}
-        {activeTab === 'approvals' && (
-          <FacultyApprovalsView
-            bookings={bookings}
-            onApprove={onApprove}
-            onReject={onReject}
-            facultyUser={user}
-          />
-        )}
+      {activeTab === 'directory' && (
+        <LabDirectoryView />
+      )}
 
-        {/* 2. Classroom Space Radar & Faculty Reservation */}
-        {activeTab === 'classrooms' && (
-          <div>
-            <div style={{
-              backgroundColor: 'var(--status-available-bg)',
-              border: '1px solid var(--status-available-border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: '0.65rem 0.85rem',
-              fontSize: '0.8rem',
-              color: 'var(--status-available-text)',
-              fontWeight: 700,
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}>
-              <CheckCircle2 size={16} />
-              <span>
-                <strong>Faculty Exclusive:</strong> You can reserve any unoccupied classroom across AB-1 and AB-3.
-              </span>
-            </div>
-
-            <ClassroomOccupancyModule
-              simulatedContext={simulatedContext}
-              user={user}
-            />
+      {activeTab === 'profile' && (
+        <div className="card-amrita" style={{ padding: '1.5rem', maxWidth: '540px', margin: '0 auto' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem' }}>
+            Faculty Profile & Department
+          </h3>
+          <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.85rem' }}>
+            <div><span style={{ color: 'var(--text-muted)' }}>Full Name:</span> <strong>{fullName}</strong></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Employee ID:</span> <strong>{empId}</strong></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Department:</span> <strong>{dept}</strong></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Designation:</span> <strong>Associate Professor / Mentor</strong></div>
+            <div><span style={{ color: 'var(--text-muted)' }}>Role:</span> <strong className="text-amrita-maroon">Faculty Member</strong></div>
           </div>
-        )}
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)' }}>
+            <button
+              onClick={onLogout}
+              className="btn-secondary"
+              style={{ color: '#b91c1c', border: '1px solid #fee2e2', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <LogOut size={14} /> Sign Out of Amrita Yukti
+            </button>
+          </div>
+        </div>
+      )}
 
-        {/* 3. AI Lab Finder Bot */}
-        {activeTab === 'bot' && (
-          <SmartLabFinderBot
-            user={user}
-            onBookingSubmitted={onNewBooking}
-          />
-        )}
-
-        {/* 4. Innovation Labs & Component Stock Directory */}
-        {activeTab === 'directory' && (
-          <LabDirectoryView
-            onBookLab={(lab) => setActiveTab('bot')}
-          />
-        )}
-
-        {/* 5. Profile & Settings */}
-        {activeTab === 'profile' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <div className="card-amrita" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--amrita-maroon)', marginBottom: '1rem' }}>
-                Faculty Official Profile
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.85rem', fontSize: '0.85rem' }}>
-                <div style={{ padding: '0.65rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Faculty Name</span>
-                  <strong>{user?.name}</strong>
-                </div>
-                <div style={{ padding: '0.65rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Employee ID</span>
-                  <strong>{user?.emp_id}</strong>
-                </div>
-                <div style={{ padding: '0.65rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Department</span>
-                  <strong>{user?.department}</strong>
-                </div>
-                <div style={{ padding: '0.65rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Designation</span>
-                  <strong>{user?.designation}</strong>
-                </div>
-                <div style={{ padding: '0.65rem', backgroundColor: 'var(--bg-surface-alt)', borderRadius: 'var(--radius-sm)' }}>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', display: 'block' }}>Official Email</span>
-                  <strong>{user?.email}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="card-amrita" style={{ padding: '1.5rem', maxWidth: '640px' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Settings size={18} /> Notification & Approval Preferences
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', fontSize: '0.85rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked />
-                  <span>Instant alert on incoming student equipment/slot requests</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked />
-                  <span>Auto-approve verified 3D print jobs during low-utilization idle hours</span>
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer' }}>
-                  <input type="checkbox" defaultChecked />
-                  <span>Send weekly equipment utilization report to Department Head</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Session Security Card with Explicit Log Out Button */}
-            <div className="card-amrita" style={{ padding: '1.25rem 1.5rem', maxWidth: '640px', borderLeft: '4px solid #ef4444' }}>
-              <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#991b1b', margin: '0 0 0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <LogOut size={16} /> Session Security
-              </h4>
-              <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', margin: '0 0 1rem' }}>
-                Currently logged in as faculty <strong>{user?.name}</strong> ({user?.emp_id}). Log out when leaving faculty terminal.
-              </p>
+      {/* Modal: Order Component */}
+      {showOrderModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h4 className="font-bold text-gray-900 text-lg">Requisition Components</h4>
               <button
-                type="button"
-                onClick={onLogout}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '0.55rem 1.25rem',
-                  backgroundColor: '#fee2e2',
-                  color: '#991b1b',
-                  border: '1px solid #fecaca',
-                  borderRadius: '8px',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.15s ease'
-                }}
+                onClick={() => setShowOrderModal(false)}
+                className="text-gray-400 hover:text-gray-600 font-bold text-lg"
               >
-                <LogOut size={15} />
-                <span>Log Out of Session</span>
+                ✕
               </button>
             </div>
-          </div>
-        )}
 
-      </div>
-
-      {/* Native Mobile Bottom Navigation */}
-      <nav className="mobile-bottom-nav" aria-label="Faculty Mobile Bottom Navigation">
-        {facultyTabs.map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => handleTabChange(tab.id)}
-              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Icon size={20} />
-                {typeof tab.count === 'number' && tab.count > 0 && (
-                  <span className="mobile-badge">{tab.count}</span>
-                )}
+            <form onSubmit={handleCreateOrder} className="space-y-4 text-sm">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Component / IC</label>
+                <input
+                  type="text"
+                  value={orderItem}
+                  onChange={(e) => setOrderItem(e.target.value)}
+                  placeholder="e.g. LM741 Op-Amp DIP-8 (Pack of 50)"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
+                />
               </div>
-              <span>{tab.shortLabel}</span>
-            </button>
-          );
-        })}
-      </nav>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Quantity</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={orderQty}
+                  onChange={(e) => setOrderQty(e.target.value)}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Course / Laboratory Context</label>
+                <textarea
+                  value={orderReason}
+                  onChange={(e) => setOrderReason(e.target.value)}
+                  placeholder="e.g. Required for B.Tech ECE Sem 4 Analog Circuit Design Laboratory experiments"
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowOrderModal(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingOrder}
+                  className="btn-amrita px-4 py-2 font-bold"
+                >
+                  Submit Requisition
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

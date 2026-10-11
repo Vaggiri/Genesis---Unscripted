@@ -1,172 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Building2, 
   Cpu, 
   Layers, 
   CheckCircle2, 
   Clock, 
-  Wrench, 
   Search, 
-  Filter, 
-  Eye, 
   Calendar,
-  AlertCircle
+  Package
 } from 'lucide-react';
-import { INNOVATION_LABS } from '../services/labsData';
+import { api } from '../services/api';
 
-export default function LabDirectoryView({ onBookLab }) {
-  const [selectedCategory, setSelectedCategory] = useState('all');
+export default function LabDirectoryView({ onBookSlot }) {
+  const [resources, setResources] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLabDetails, setSelectedLabDetails] = useState(null);
+  const [selectedLab, setSelectedLab] = useState('all');
 
-  const filteredLabs = INNOVATION_LABS.filter(lab => {
-    const matchesCat = selectedCategory === 'all' || lab.category === selectedCategory;
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [resData, invData] = await Promise.all([
+        api.getResources(),
+        api.getInventory()
+      ]);
+      setResources(resData || []);
+      setInventory(invData || []);
+    } catch (err) {
+      console.warn('Failed to fetch resources:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const labs = [
+    { id: 'lab-fablab', name: 'Digital Fabrication & Prototyping Hub', block: 'AB-1', floor: 1, category: 'Fabrication & 3D Print' },
+    { id: 'lab-pcb-eda', name: 'PCB Prototyping & Microelectronics Fab', block: 'AB-1', floor: 2, category: 'Electronics & EDA' },
+    { id: 'lab-iot-robotics', name: 'IoT, Robotics & Automation Centre', block: 'AB-2', floor: 2, category: 'Robotics & Hardware' },
+    { id: 'lab-ai-hpc', name: 'AI & High Performance Computing Lab', block: 'AB-3', floor: 3, category: 'Computing & AI' },
+    { id: 'lab-mech-workshop', name: 'Mechanical Workshop & Machining Bay', block: 'AB-2', floor: 0, category: 'Heavy Machining' }
+  ];
+
+  const filteredLabs = labs.filter(lab => {
+    const matchesLab = selectedLab === 'all' || lab.id === selectedLab;
     const matchesSearch = lab.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           lab.block.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          lab.specs.softwareInstalled?.some(s => s.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          lab.benchComponents?.some(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCat && matchesSearch;
+                          resources.some(r => r.lab_id === lab.id && r.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          inventory.some(i => i.lab_id === lab.id && i.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    return matchesLab && matchesSearch;
   });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className="space-y-6">
       
       {/* Search and Category Filter Bar */}
-      <div className="card-amrita" style={{ padding: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '260px' }}>
-          <Search size={16} color="var(--text-muted)" />
+      <div className="card-amrita p-4 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="relative w-full md:w-96">
+          <Search className="w-4 h-4 absolute left-3.5 top-3 text-gray-400" />
           <input
             type="text"
-            placeholder="Search labs by software (PyTorch, Vivado), IC (LM741), or equipment..."
+            placeholder="Search equipment (Bambu Lab, RTX 4090) or drawer components..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-input"
-            style={{ minHeight: '38px', fontSize: '0.825rem' }}
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amrita-maroon focus:outline-none"
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-          {[
-            { id: 'all', label: 'All Innovation Labs' },
-            { id: 'software', label: 'AI & Software Labs' },
-            { id: 'hardware_circuit', label: 'VLSI & Circuit Labs' },
-            { id: 'rapid_prototyping', label: 'FabLab & 3D Prototyping' },
-            { id: 'robotics_iot', label: 'Robotics & IoT' }
-          ].map(cat => (
+        <div className="flex gap-1.5 flex-wrap w-full md:w-auto">
+          {['all', 'lab-fablab', 'lab-pcb-eda', 'lab-iot-robotics', 'lab-ai-hpc', 'lab-mech-workshop'].map(lId => (
             <button
-              key={cat.id}
+              key={lId}
               type="button"
-              onClick={() => setSelectedCategory(cat.id)}
-              style={{
-                padding: '0.4rem 0.75rem',
-                borderRadius: 'var(--radius-sm)',
-                border: selectedCategory === cat.id ? '2px solid var(--amrita-maroon)' : '1px solid var(--border-light)',
-                backgroundColor: selectedCategory === cat.id ? 'var(--amrita-maroon-bg)' : '#ffffff',
-                color: selectedCategory === cat.id ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
-                fontWeight: selectedCategory === cat.id ? 700 : 500,
-                fontSize: '0.75rem',
-                cursor: 'pointer'
-              }}
+              onClick={() => setSelectedLab(lId)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                selectedLab === lId
+                  ? 'bg-amrita-maroon text-white shadow-2xs'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
             >
-              {cat.label}
+              {lId === 'all' ? 'All Hubs' : lId.replace('lab-', '').toUpperCase()}
             </button>
           ))}
         </div>
       </div>
 
       {/* Lab Cards Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
-        {filteredLabs.map(lab => (
-          <div
-            key={lab.id}
-            className="card-amrita"
-            style={{
-              padding: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              transition: 'var(--transition)'
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                <span className="badge badge-maroon" style={{ fontSize: '0.675rem', textTransform: 'uppercase' }}>
-                  {lab.category.replace('_', ' ')}
-                </span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--status-available)' }}>
-                  {lab.currentUtilization} Utilized
-                </span>
-              </div>
+      {loading ? (
+        <div className="card-amrita p-12 text-center text-gray-500 font-medium">Scanning innovation labs and verified hardware...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {filteredLabs.map(lab => {
+            const labResources = resources.filter(r => r.lab_id === lab.id);
+            const labInventory = inventory.filter(i => i.lab_id === lab.id);
 
-              <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.25rem' }}>
-                {lab.name}
-              </h4>
-              <p style={{ fontSize: '0.785rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
-                📍 {lab.block} • {lab.floor} • Capacity: {lab.capacity} seats
-              </p>
-
-              {/* Hardware / Workstation Highlights */}
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-main)', backgroundColor: 'var(--bg-surface-alt)', padding: '0.5rem 0.75rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.65rem' }}>
-                <strong style={{ color: 'var(--amrita-maroon)' }}>Hardware: </strong> 
-                {lab.specs.workstations || lab.specs.equipment?.[0]}
-              </div>
-
-              {/* Software Versions tags */}
-              <div style={{ marginBottom: '0.75rem' }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem', fontWeight: 600 }}>
-                  Installed Software & Toolchains:
-                </span>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-                  {lab.specs.softwareInstalled?.slice(0, 4).map((sw, sIdx) => (
-                    <span key={sIdx} style={{ fontSize: '0.685rem', padding: '0.15rem 0.45rem', backgroundColor: '#e2e8f0', borderRadius: '4px', fontWeight: 600 }}>
-                      {sw}
+            return (
+              <div key={lab.id} className="card-amrita p-6 flex flex-col justify-between space-y-4 hover:shadow-md transition">
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <span className="badge-amrita text-[10px] font-bold uppercase tracking-wider">
+                      {lab.category}
                     </span>
-                  ))}
-                  {lab.specs.softwareInstalled?.length > 4 && (
-                    <span style={{ fontSize: '0.685rem', padding: '0.15rem 0.35rem', color: 'var(--text-muted)' }}>
-                      +{lab.specs.softwareInstalled.length - 4} more
+                    <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-emerald-600" /> Open: 08:30 - 17:30
                     </span>
-                  )}
-                </div>
-              </div>
+                  </div>
 
-              {/* In-Stock Bench Components if applicable */}
-              {lab.benchComponents?.length > 0 && (
-                <div style={{ marginBottom: '0.75rem' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem', fontWeight: 600 }}>
-                    In-Stock Hardware & Components:
-                  </span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-                    {lab.benchComponents.slice(0, 3).map((comp, cIdx) => (
-                      <span key={cIdx} style={{ fontSize: '0.685rem', padding: '0.15rem 0.45rem', backgroundColor: 'var(--status-available-bg)', color: 'var(--status-available-text)', border: '1px solid var(--status-available-border)', borderRadius: '4px', fontWeight: 600 }}>
-                        {comp.name}
-                      </span>
-                    ))}
+                  <div>
+                    <h3 className="font-extrabold text-gray-900 text-lg">{lab.name}</h3>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <Building2 className="w-3.5 h-3.5 text-amrita-maroon" /> Block {lab.block}, Floor {lab.floor}
+                    </p>
+                  </div>
+
+                  {/* Registered Machines & Resources */}
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1">
+                      <Cpu className="w-3.5 h-3.5 text-amrita-maroon" /> Active Machines & Benches ({labResources.length}):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {labResources.map(r => (
+                        <span key={r.id} className="bg-gray-100 border border-gray-200 text-gray-800 text-xs px-2.5 py-1 rounded-lg font-medium flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" /> {r.name}
+                          {r.requires_cert && <span className="text-[9px] text-amber-700 font-bold bg-amber-100 px-1 rounded">Cert Req</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Live Drawer Inventory */}
+                  <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                    <span className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1">
+                      <Package className="w-3.5 h-3.5 text-amrita-maroon" /> Drawer Component Stock ({labInventory.length} items):
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                      {labInventory.map(item => (
+                        <span key={item.id} className="bg-amrita-maroon/5 border border-amrita-maroon/15 text-amrita-maroon text-[11px] px-2 py-0.5 rounded font-semibold">
+                          {item.name} ({item.quantity} in {item.location || 'drawer'})
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Actions & Next Open Slot */}
-            <div style={{ paddingTop: '0.75rem', borderTop: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Next Open Slot:</span>
-                <strong style={{ fontSize: '0.785rem', color: 'var(--amrita-maroon)' }}>{lab.availableSlotsToday[0] || '10:00 AM Tomorrow'}</strong>
+                <div className="pt-3 border-t border-gray-100 flex justify-end">
+                  <button
+                    onClick={() => {
+                      if (onBookSlot) onBookSlot(lab);
+                    }}
+                    className="btn-amrita px-4 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 shadow-2xs"
+                  >
+                    <Calendar className="w-3.5 h-3.5" /> Book Machine Slot
+                  </button>
+                </div>
               </div>
-
-              <button
-                type="button"
-                onClick={() => onBookLab(lab)}
-                className="btn-amrita"
-                style={{ padding: '0.4rem 0.85rem', fontSize: '0.785rem' }}
-              >
-                Book Facility
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

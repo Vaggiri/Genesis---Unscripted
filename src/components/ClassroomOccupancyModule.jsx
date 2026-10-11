@@ -1,64 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Compass, 
-  Clock, 
   Calendar, 
   AlertTriangle, 
-  CheckCircle2, 
   FlaskConical, 
   Flag, 
-  RefreshCw,
-  Filter,
-  Wind,
-  Tv,
-  Zap,
-  Monitor
+  RefreshCw 
 } from 'lucide-react';
 import { api } from '../services/api';
 import RoomTimetableModal from './RoomTimetableModal';
 import ReportRoomModal from './ReportRoomModal';
 
-export default function ClassroomOccupancyModule({ simulatedContext, user }) {
+export default function ClassroomOccupancyModule({ simulatedContext = {}, user }) {
   const isFaculty = user?.role === 'faculty';
-  const [bookedRooms, setBookedRooms] = useState({}); // { [roomId]: { facultyName, purpose, time } }
   const [bookingRoomModal, setBookingRoomModal] = useState(null);
   const [facultyPurpose, setFacultyPurpose] = useState('');
+  const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [bookingSlot, setBookingSlot] = useState(1);
+  const [bookingError, setBookingError] = useState(null);
+  const [bookingAlternatives, setBookingAlternatives] = useState([]);
+  const [submittingBooking, setSubmittingBooking] = useState(false);
   const [classrooms, setClassrooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedBlock, setSelectedBlock] = useState('All');
-  const [selectedType, setSelectedType] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
-  const [selectedAmenities, setSelectedAmenities] = useState([]);
 
   // Modals state
   const [timetableModalRoom, setTimetableModalRoom] = useState(null);
   const [reportModalRoom, setReportModalRoom] = useState(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getClassrooms(simulatedContext.day, simulatedContext.time);
-      setClassrooms(res.classrooms || []);
+      const data = await api.getClassrooms(simulatedContext.day, simulatedContext.time);
+      if (data && data.classrooms) {
+        setClassrooms(data.classrooms);
+      }
     } catch (err) {
-      console.error('Error fetching classrooms:', err);
+      console.warn('Failed to load classrooms:', err);
     } finally {
       setLoading(false);
+    }
+  }, [simulatedContext.day, simulatedContext.time]);
+
+  const handleConfirmRoomBooking = async () => {
+    if (!bookingRoomModal) return;
+    setSubmittingBooking(true);
+    setBookingError(null);
+    setBookingAlternatives([]);
+
+    try {
+      await api.bookRoom({
+        room_id: bookingRoomModal.id,
+        booking_date: bookingDate,
+        slot_number: Number(bookingSlot),
+        purpose: facultyPurpose || 'Faculty Academic Session'
+      });
+      setBookingRoomModal(null);
+      setFacultyPurpose('');
+      loadData();
+    } catch (err) {
+      if (err.status === 409) {
+        setBookingError(err.message || 'Room conflict detected.');
+        if (err.data?.alternatives) {
+          setBookingAlternatives(err.data.alternatives);
+        }
+      } else {
+        setBookingError(err.message || 'Failed to book room.');
+      }
+    } finally {
+      setSubmittingBooking(false);
+    }
+  };
+
+  const handleMarkClassVacant = async (room) => {
+    if (!window.confirm(`Mark class in ${room.room_number} as cancelled/vacant so other faculty or students can use it?`)) return;
+    try {
+      await api.submitReport({
+        room_id: room.id,
+        report_type: 'class_cancelled_empty',
+        reported_batch: 'Faculty Notice',
+        reported_department: 'Academic',
+        purpose: 'Faculty notified class cancelled / free for session',
+        occupancy_level: 'Empty'
+      });
+      alert(`Room ${room.room_number} marked as vacant! Space Radar updated.`);
+      loadData();
+    } catch (err) {
+      alert(`Error marking vacant: ${err.message}`);
     }
   };
 
   useEffect(() => {
     loadData();
-  }, [simulatedContext.day, simulatedContext.time]);
-
-  const toggleAmenity = (key) => {
-    if (selectedAmenities.includes(key)) {
-      setSelectedAmenities(selectedAmenities.filter(a => a !== key));
-    } else {
-      setSelectedAmenities([...selectedAmenities, key]);
-    }
-  };
+  }, [loadData]);
 
   const filteredClassrooms = classrooms.filter(room => {
     const matchesSearch = 
@@ -69,16 +106,9 @@ export default function ClassroomOccupancyModule({ simulatedContext, user }) {
 
     if (!matchesSearch) return false;
     if (selectedBlock !== 'All' && room.block !== selectedBlock) return false;
-    if (selectedType !== 'All' && room.room_type !== selectedType) return false;
     if (selectedStatus === 'available' && room.status !== 'available') return false;
     if (selectedStatus === 'occupied' && room.status !== 'occupied' && room.status !== 'reported_occupied') return false;
     if (selectedStatus === 'flagged' && !room.is_flagged && room.status !== 'flagged_occupied') return false;
-
-    if (selectedAmenities.length > 0) {
-      const roomAmenities = Array.isArray(room.amenities) ? room.amenities : [];
-      const hasAll = selectedAmenities.every(a => roomAmenities.includes(a));
-      if (!hasAll) return false;
-    }
 
     return true;
   });
@@ -419,26 +449,52 @@ export default function ClassroomOccupancyModule({ simulatedContext, user }) {
 
                   {/* Faculty Exclusive Classroom Booking Feature */}
                   {isFaculty && (
-                    <button
-                      onClick={() => setBookingRoomModal(room)}
-                      disabled={bookedRooms[room.id] || room.status === 'occupied'}
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '0.3rem',
-                        minHeight: '36px',
-                        backgroundColor: bookedRooms[room.id] ? '#f1f5f9' : 'var(--amrita-maroon)',
-                        color: bookedRooms[room.id] ? 'var(--text-muted)' : '#ffffff',
-                        border: 'none',
-                        borderRadius: 'var(--radius-md)',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        cursor: bookedRooms[room.id] ? 'default' : 'pointer'
-                      }}
-                    >
-                      <span>{bookedRooms[room.id] ? 'Reserved' : 'Book Room'}</span>
-                    </button>
+                    <>
+                      <button
+                        onClick={() => handleMarkClassVacant(room)}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: '36px',
+                          backgroundColor: '#f8fafc',
+                          color: '#475569',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                        title="Mark your scheduled class as cancelled / free"
+                      >
+                        <span>Mark Free</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setBookingRoomModal(room);
+                          setBookingError(null);
+                          setBookingAlternatives([]);
+                        }}
+                        disabled={room.status === 'occupied'}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          minHeight: '36px',
+                          backgroundColor: 'var(--amrita-maroon)',
+                          color: '#ffffff',
+                          border: 'none',
+                          borderRadius: 'var(--radius-md)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: room.status === 'occupied' ? 'not-allowed' : 'pointer',
+                          opacity: room.status === 'occupied' ? 0.6 : 1
+                        }}
+                      >
+                        <span>Book Room</span>
+                      </button>
+                    </>
                   )}
                 </div>
 
@@ -451,13 +507,67 @@ export default function ClassroomOccupancyModule({ simulatedContext, user }) {
       {/* Faculty Room Reservation Modal */}
       {bookingRoomModal && (
         <div className="modal-backdrop">
-          <div className="modal-content" style={{ padding: '1.5rem', maxWidth: '460px' }}>
+          <div className="modal-content" style={{ padding: '1.5rem', maxWidth: '480px' }}>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.4rem' }}>
               Faculty Classroom Reservation
             </h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Reserving <strong>Room {bookingRoomModal.room_number}</strong> ({bookingRoomModal.block}, {bookingRoomModal.floor})
+              Reserving <strong>Room {bookingRoomModal.room_number}</strong> ({bookingRoomModal.block}, Floor {bookingRoomModal.floor})
             </p>
+
+            {bookingError && (
+              <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecdd3', padding: '0.75rem', borderRadius: '0.5rem', marginBottom: '1rem', fontSize: '0.8rem', color: '#9f1239' }}>
+                <p style={{ fontWeight: 700 }}>⚠️ {bookingError}</p>
+                {bookingAlternatives.length > 0 && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <p style={{ fontWeight: 600 }}>Available alternative rooms for this slot:</p>
+                    <ul style={{ listStyle: 'disc', paddingLeft: '1.2rem', marginTop: '0.2rem' }}>
+                      {bookingAlternatives.map((alt) => (
+                        <li key={alt.id} style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setBookingRoomModal(alt)}>
+                          {alt.room_number} ({alt.block}) - Click to pick
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                  Booking Date:
+                </label>
+                <input
+                  type="date"
+                  value={bookingDate}
+                  onChange={(e) => setBookingDate(e.target.value)}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
+                  Timetable Period / Slot:
+                </label>
+                <select
+                  value={bookingSlot}
+                  onChange={(e) => setBookingSlot(Number(e.target.value))}
+                  className="form-input"
+                  style={{ fontSize: '0.85rem' }}
+                >
+                  <option value={1}>Slot 1 (08:45 - 09:35 AM)</option>
+                  <option value={2}>Slot 2 (09:40 - 10:30 AM)</option>
+                  <option value={3}>Slot 3 (10:45 - 11:35 AM)</option>
+                  <option value={4}>Slot 4 (11:40 - 12:30 PM)</option>
+                  <option value={5}>Slot 5 (01:30 - 02:20 PM)</option>
+                  <option value={6}>Slot 6 (02:25 - 03:15 PM)</option>
+                  <option value={7}>Slot 7 (03:30 - 04:20 PM)</option>
+                  <option value={8}>Slot 8 (04:25 - 05:15 PM)</option>
+                </select>
+              </div>
+            </div>
 
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
@@ -484,22 +594,12 @@ export default function ClassroomOccupancyModule({ simulatedContext, user }) {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setBookedRooms(prev => ({
-                    ...prev,
-                    [bookingRoomModal.id]: {
-                      facultyName: user?.name || 'Faculty Member',
-                      purpose: facultyPurpose || 'Special Academic Session',
-                      time: 'Reserved for Current Session'
-                    }
-                  }));
-                  setBookingRoomModal(null);
-                  setFacultyPurpose('');
-                }}
+                onClick={handleConfirmRoomBooking}
+                disabled={submittingBooking}
                 className="btn-amrita"
                 style={{ fontSize: '0.8rem' }}
               >
-                Confirm Classroom Booking
+                {submittingBooking ? 'Reserving...' : 'Confirm Room Reservation'}
               </button>
             </div>
           </div>

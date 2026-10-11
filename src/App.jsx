@@ -3,21 +3,16 @@ import Navbar from './components/Navbar';
 import LoginPage from './components/LoginPage';
 import StudentPortal from './components/StudentPortal';
 import FacultyPortal from './components/FacultyPortal';
+import LabInchargePortal from './components/LabInchargePortal';
 import AdminPortal from './components/AdminPortal';
 import SupabaseConfigModal from './components/SupabaseConfigModal';
-import AiTunnelModal from './components/AiTunnelModal';
-import { getStoredUser, setStoredUser } from './services/auth';
-import { getStoredBookings, saveStoredBookings } from './services/labsData';
+import { useAuth } from './context/AuthContext';
+import { useBookings } from './hooks/useBookings';
 import { api } from './services/api';
 
 export default function App() {
-  // If stored user exists in sessionStorage/localStorage, initialize with it; default to null (shows Login Page)
-  const [currentUser, setCurrentUser] = useState(() => getStoredUser() || null);
+  const { user, profile, role, loading: authLoading, signOut } = useAuth();
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-
-  // Global Centralized Booking Requests State (persisted)
-  const [bookings, setBookings] = useState(() => getStoredBookings());
   const [toastNotification, setToastNotification] = useState(null);
 
   // Synthesized notification chime (zero audio dependencies)
@@ -29,7 +24,7 @@ export default function App() {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(tone === 'high' ? 880 : 587.33, ctx.currentTime); // A5 or D5
+      osc.frequency.setValueAtTime(tone === 'high' ? 880 : 587.33, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(tone === 'high' ? 1320 : 880, ctx.currentTime + 0.18);
       gain.gain.setValueAtTime(0.15, ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
@@ -37,162 +32,40 @@ export default function App() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.36);
-    } catch (e) {
-      // AudioContext may be restricted before first gesture
+    } catch (_e) {
+      // AudioContext may be restricted before first interaction
     }
   };
 
-  // Cross-Tab Real-time BroadcastChannel & Backend Synchronization
-  useEffect(() => {
-    let channel = null;
-    try {
-      channel = new BroadcastChannel('amrita_innovatex_sync');
-      channel.onmessage = (event) => {
-        const data = event.data;
-        if (!data) return;
-
-        if (data.type === 'NEW_BOOKING_SUBMITTED') {
-          setBookings(prev => {
-            const exists = prev.some(b => b.id === data.booking.id);
-            if (exists) return prev;
-            return [data.booking, ...prev];
-          });
-
-          // If current user is faculty, show toast & play chime
-          if (currentUser?.role === 'faculty') {
-            playNotificationChime('high');
-            setToastNotification({
-              id: `toast-${Date.now()}`,
-              type: 'new_request',
-              title: '🔔 New Lab Slot Request Received!',
-              message: `${data.booking.studentName} (${data.booking.studentRoll}) requested ${data.booking.labName} for ${data.booking.slotTime}.`,
-              bookingId: data.booking.id
-            });
-          }
-        } else if (data.type === 'BOOKING_STATUS_CHANGED') {
-          setBookings(prev => prev.map(b => b.id === data.bookingId ? { ...b, status: data.status } : b));
-          
-          // If current user is student and matches, notify
-          if (currentUser?.role === 'student') {
-            playNotificationChime(data.status === 'approved' ? 'high' : 'low');
-            setToastNotification({
-              id: `toast-${Date.now()}`,
-              type: data.status,
-              title: data.status === 'approved' ? '✅ Lab Slot Request Approved!' : '⚠️ Lab Slot Request Updated',
-              message: `Your booking request has been marked as ${data.status.toUpperCase()} by faculty in-charge.`,
-              bookingId: data.bookingId
-            });
-          }
-        }
-      };
-    } catch (e) {
-      console.warn('BroadcastChannel not supported:', e);
-    }
-
-    // Storage event listener fallback for older multi-tab browsers
-    const handleStorageChange = (e) => {
-      if (e.key === 'amrita_innovatex_bookings' && e.newValue) {
-        try {
-          const fresh = JSON.parse(e.newValue);
-          setBookings(fresh);
-        } catch (err) {}
+  // Real-time facility bookings hook with Supabase Realtime subscription
+  const {
+    bookings,
+    createBooking,
+    updateBookingStatus,
+    refresh: refreshBookings
+  } = useBookings({
+    onRealtimeEvent: (payload) => {
+      if (payload.eventType === 'INSERT') {
+        playNotificationChime('high');
+        setToastNotification({
+          id: `toast-${Date.now()}`,
+          type: 'new_request',
+          title: '🔔 New Lab Booking Event',
+          message: `Booking created: ${payload.new?.purpose || 'Equipment Reservation'}`
+        });
+      } else if (payload.eventType === 'UPDATE') {
+        playNotificationChime(payload.new?.status === 'approved' ? 'high' : 'low');
+        setToastNotification({
+          id: `toast-${Date.now()}`,
+          type: payload.new?.status || 'updated',
+          title: payload.new?.status === 'approved' ? '✅ Booking Approved!' : '⚠️ Booking Status Changed',
+          message: `Booking status updated to ${String(payload.new?.status || '').toUpperCase()}`
+        });
       }
-    };
-    window.addEventListener('storage', handleStorageChange);
+    }
+  });
 
-    // Initial background fetch from backend server
-    fetch('/api/innovation/bookings')
-      .then(res => res.json())
-      .then(data => {
-        if (data?.bookings?.length) {
-          setBookings(prev => {
-            // merge without duplicates
-            const map = new Map();
-            [...prev, ...data.bookings].forEach(item => map.set(item.id, item));
-            return Array.from(map.values());
-          });
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      if (channel) channel.close();
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [currentUser]);
-
-  // Auto-dismiss toast notification after 6 seconds
-  useEffect(() => {
-    if (!toastNotification) return;
-    const timer = setTimeout(() => {
-      setToastNotification(null);
-    }, 6000);
-    return () => clearTimeout(timer);
-  }, [toastNotification]);
-
-  const handleNewBooking = (newBooking) => {
-    setBookings(prev => {
-      const updated = [newBooking, ...prev];
-      saveStoredBookings(updated);
-      return updated;
-    });
-
-    // Broadcast to other open tabs
-    try {
-      const ch = new BroadcastChannel('amrita_innovatex_sync');
-      ch.postMessage({ type: 'NEW_BOOKING_SUBMITTED', booking: newBooking });
-      setTimeout(() => ch.close(), 100);
-    } catch (e) {}
-
-    // Sync to backend server
-    fetch('/api/innovation/bookings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newBooking)
-    }).catch(() => {});
-  };
-
-  const handleApproveBooking = (bookingId) => {
-    setBookings(prev => {
-      const updated = prev.map(b => b.id === bookingId ? { ...b, status: 'approved' } : b);
-      saveStoredBookings(updated);
-      return updated;
-    });
-
-    try {
-      const ch = new BroadcastChannel('amrita_innovatex_sync');
-      ch.postMessage({ type: 'BOOKING_STATUS_CHANGED', bookingId, status: 'approved' });
-      setTimeout(() => ch.close(), 100);
-    } catch (e) {}
-
-    fetch(`/api/innovation/bookings/${bookingId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'approved' })
-    }).catch(() => {});
-  };
-
-  const handleRejectBooking = (bookingId) => {
-    setBookings(prev => {
-      const updated = prev.map(b => b.id === bookingId ? { ...b, status: 'rejected' } : b);
-      saveStoredBookings(updated);
-      return updated;
-    });
-
-    try {
-      const ch = new BroadcastChannel('amrita_innovatex_sync');
-      ch.postMessage({ type: 'BOOKING_STATUS_CHANGED', bookingId, status: 'rejected' });
-      setTimeout(() => ch.close(), 100);
-    } catch (e) {}
-
-    fetch(`/api/innovation/bookings/${bookingId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'rejected' })
-    }).catch(() => {});
-  };
-
-  const [simulatedContext, setSimulatedContext] = useState({
+  const [simulatedContext] = useState({
     day: 'Monday',
     time: ''
   });
@@ -224,31 +97,104 @@ export default function App() {
     refreshGlobalData();
   }, []);
 
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    setStoredUser(user);
+  // Auto-dismiss toast notification after 6 seconds
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = setTimeout(() => {
+      setToastNotification(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [toastNotification]);
+
+  const handleNewBooking = async (newBooking) => {
+    try {
+      await createBooking(newBooking);
+      setToastNotification({
+        id: `toast-${Date.now()}`,
+        type: 'approved',
+        title: 'Booking Confirmed',
+        message: 'Your slot request has been recorded.'
+      });
+    } catch (err) {
+      setToastNotification({
+        id: `toast-${Date.now()}`,
+        type: 'error',
+        title: 'Booking Conflict / Notice',
+        message: err.message || 'Unable to record slot.'
+      });
+    }
   };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
-    setStoredUser(null);
+  const handleApproveBooking = async (bookingId) => {
+    try {
+      await updateBookingStatus(bookingId, 'approved');
+    } catch (err) {
+      console.warn('Approve error:', err);
+    }
   };
+
+  const handleRejectBooking = async (bookingId) => {
+    try {
+      await updateBookingStatus(bookingId, 'rejected');
+    } catch (err) {
+      console.warn('Reject error:', err);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'var(--bg-page)',
+        fontFamily: 'Inter, system-ui, sans-serif'
+      }}>
+        <div style={{
+          width: '48px',
+          height: '48px',
+          borderRadius: '50%',
+          border: '4px solid var(--border-light)',
+          borderTopColor: 'var(--amrita-maroon)',
+          animation: 'spin 0.8s linear infinite',
+          marginBottom: '1rem'
+        }} />
+        <h3 style={{ color: 'var(--amrita-maroon)', fontWeight: 800, margin: 0 }}>Amrita Yukti</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+          Verifying security session...
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  const currentUser = user ? {
+    ...(profile || {}),
+    id: user.id,
+    email: user.email,
+    role: role || profile?.role || 'student',
+    full_name: profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0],
+    roll_no: profile?.roll_no || user.user_metadata?.roll_no || 'AMRITA-STUDENT',
+    emp_id: profile?.emp_id || user.user_metadata?.emp_id || 'AMRITA-FACULTY',
+    department: profile?.department || user.user_metadata?.department || 'Engineering'
+  } : null;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: 'var(--bg-page)' }}>
-      {/* Navbar with secure session indicator and no exposed admin link */}
+      {/* Navbar with secure session indicator and role badge */}
       <Navbar
         currentUser={currentUser}
-        onLogout={handleLogout}
+        onLogout={signOut}
         onOpenSupabaseModal={() => setIsSupabaseModalOpen(true)}
-        onOpenAiModal={() => setIsAiModalOpen(true)}
       />
 
       {/* Main Content Area */}
       <main style={{ flex: 1 }}>
-        <div className="container">
+        <div className="container" style={{ paddingTop: '1.25rem', paddingBottom: '2rem' }}>
           {!currentUser ? (
-            <LoginPage onLoginSuccess={handleLoginSuccess} />
+            <LoginPage />
           ) : (
             <>
               {currentUser.role === 'student' && (
@@ -257,7 +203,7 @@ export default function App() {
                   simulatedContext={simulatedContext}
                   bookings={bookings}
                   onNewBooking={handleNewBooking}
-                  onLogout={handleLogout}
+                  onLogout={signOut}
                 />
               )}
 
@@ -269,7 +215,14 @@ export default function App() {
                   onApprove={handleApproveBooking}
                   onReject={handleRejectBooking}
                   onNewBooking={handleNewBooking}
-                  onLogout={handleLogout}
+                  onLogout={signOut}
+                />
+              )}
+
+              {currentUser.role === 'lab_incharge' && (
+                <LabInchargePortal
+                  currentUser={currentUser}
+                  onBookSlot={handleNewBooking}
                 />
               )}
 
@@ -314,7 +267,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Live Cross-Tab Notification Toast */}
+      {/* Live Realtime Notification Toast */}
       {toastNotification && (
         <div style={{
           position: 'fixed',
@@ -326,7 +279,7 @@ export default function App() {
           backgroundColor: '#ffffff',
           borderRadius: '12px',
           boxShadow: '0 12px 36px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(164, 18, 63, 0.12)',
-          borderLeft: `5px solid ${toastNotification.type === 'approved' ? '#10b981' : '#A4123F'}`,
+          borderLeft: `5px solid ${toastNotification.type === 'approved' ? '#10b981' : toastNotification.type === 'error' ? '#ef4444' : '#A4123F'}`,
           borderTop: '1px solid #f1f5f9',
           borderRight: '1px solid #f1f5f9',
           borderBottom: '1px solid #f1f5f9',
@@ -339,12 +292,12 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '1.1rem' }}>
-                {toastNotification.type === 'approved' ? '🎉' : '🔔'}
+                {toastNotification.type === 'approved' ? '🎉' : toastNotification.type === 'error' ? '⚠️' : '🔔'}
               </span>
               <span style={{ 
                 fontWeight: 800, 
                 fontSize: '0.9rem', 
-                color: toastNotification.type === 'approved' ? '#065f46' : 'var(--amrita-maroon)' 
+                color: toastNotification.type === 'approved' ? '#065f46' : toastNotification.type === 'error' ? '#991b1b' : 'var(--amrita-maroon)' 
               }}>
                 {toastNotification.title}
               </span>
@@ -368,7 +321,7 @@ export default function App() {
             {toastNotification.message}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', fontSize: '0.72rem', color: '#94a3b8' }}>
-            <span>Live Sync: Active • Just now</span>
+            <span>Realtime Sync: Active</span>
             <span style={{ color: 'var(--amrita-maroon)', fontWeight: 600 }}>Amrita Yukti</span>
           </div>
         </div>
@@ -378,13 +331,10 @@ export default function App() {
       <SupabaseConfigModal
         isOpen={isSupabaseModalOpen}
         onClose={() => setIsSupabaseModalOpen(false)}
-        onConfigSaved={() => refreshGlobalData()}
-      />
-
-      {/* OmniRoute & ngrok Cloud Bridge Modal */}
-      <AiTunnelModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
+        onConfigSaved={() => {
+          refreshGlobalData();
+          refreshBookings();
+        }}
       />
     </div>
   );

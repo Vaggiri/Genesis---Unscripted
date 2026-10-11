@@ -3,8 +3,6 @@ import { X, Calendar, Clock, BookOpen, User, FlaskConical, CheckCircle2 } from '
 import { api } from '../services/api';
 
 export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
-  if (!isOpen || !classroom) return null;
-
   const [timetables, setTimetables] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState('Monday');
@@ -12,6 +10,7 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   useEffect(() => {
+    if (!isOpen || !classroom?.id) return;
     async function loadSchedule() {
       setLoading(true);
       try {
@@ -24,7 +23,9 @@ export default function RoomTimetableModal({ isOpen, onClose, classroom }) {
       }
     }
     loadSchedule();
-  }, [classroom.id]);
+  }, [isOpen, classroom?.id]);
+
+  if (!isOpen || !classroom) return null;
 
   const currentDaySlots = timetables
     .filter(t => t.day_of_week === selectedDay)

@@ -1,0 +1,11 @@
+name,part_no,category,quantity,lab,location
+10k Ohm 1/4W Metal Film Resistors (Pack of 50),RES-10K-025,Passives,120,lab-pcb-eda,Drawer D-04 / Bin 12
+220 Ohm 1/4W Carbon Resistors (Pack of 50),RES-220R-025,Passives,95,lab-pcb-eda,Drawer D-04 / Bin 01
+100uF 25V Electrolytic Capacitors,CAP-ELEC-100U,Passives,48,lab-pcb-eda,Drawer D-05 / Bin 08
+ESP32-S3-WROOM-1 DevKit Dual Type-C,ESP32-S3-N8R8,Microcontrollers,16,lab-iot-robotics,Drawer R-01 / Tray A
+Raspberry Pi Pico W with Pre-Soldered Headers,SC0918,Microcontrollers,22,lab-iot-robotics,Drawer R-01 / Tray B
+NVIDIA Jetson Orin Nano Developer Kit (8GB),945-13766-0005,SBC / Edge AI,6,lab-ai-hpc,Cabinet HPC-C2
+Polymaker PolyLite PLA 1.75mm Black (1kg spool),PM-PLA-BLK,3D Print Material,14,lab-fablab,Shelf FAB-MAT-01
+eSUN PETG 1.75mm Grey (1kg spool),ESUN-PETG-GRY,3D Print Material,9,lab-fablab,Shelf FAB-MAT-01
+Single-Sided Copper Clad FR4 100x150mm (Pack of 5),FR4-100150-1S,Raw PCB,35,lab-pcb-eda,Drawer E-02 / Bin 04
+Adafruit BNO085 9-DOF Orientation IMU Sensor,ADA-4754,Sensors,8,lab-iot-robotics,Drawer S-02 / Tray C

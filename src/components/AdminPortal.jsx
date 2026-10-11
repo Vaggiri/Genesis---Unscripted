@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import Papa from 'papaparse';
 import { 
   Sliders, 
   Calendar, 
@@ -7,15 +8,16 @@ import {
   Plus, 
   Trash2, 
   CheckCircle, 
-  AlertTriangle, 
   Save, 
   Layers, 
-  Clock, 
-  Users, 
-  Edit3,
+  ShieldCheck,
+  BarChart3,
+  FileSpreadsheet,
+  UserCog,
   ArrowLeft
 } from 'lucide-react';
 import { api } from '../services/api';
+import UtilizationDashboard from './UtilizationDashboard';
 
 export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, onSaveSettings }) {
   const [activeTab, setActiveTab] = useState('cms'); // 'cms' | 'classrooms' | 'timetables' | 'reports' | 'settings'
@@ -42,7 +44,11 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
   const [classrooms, setClassrooms] = useState([]);
   const [timetables, setTimetables] = useState([]);
   const [reports, setReports] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [usersList, setUsersList] = useState([]);
+  const [auditLogs, setAuditLogs] = useState([]);
+  const [csvTimetables, setCsvTimetables] = useState([]);
+  const [csvTimetableErrors, setCsvTimetableErrors] = useState([]);
+  const [importingTimetables, setImportingTimetables] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
   // Classroom Form
@@ -79,31 +85,101 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
     banner_active: true
   });
 
-  const loadAll = async () => {
-    setLoading(true);
+  const loadAll = useCallback(async () => {
     try {
-      const [classRes, ttRes, repRes, pagesRes, setRes] = await Promise.all([
+      const [classRes, ttRes, repRes, pagesRes, setRes, usersRes, auditRes] = await Promise.all([
         api.getClassrooms('Monday', '10:00'),
         api.getTimetables(),
         api.getReports(),
         api.getPages(),
-        api.getSettings()
+        api.getSettings(),
+        api.adminGetUsers().catch(() => []),
+        api.adminGetAuditLog().catch(() => [])
       ]);
       setClassrooms(classRes.classrooms || []);
       setTimetables(ttRes || []);
       setReports(repRes || []);
       setPages(pagesRes || []);
-      setAdminSettings(setRes || adminSettings);
+      if (setRes) setAdminSettings(setRes);
+      setUsersList(usersRes || []);
+      setAuditLogs(auditRes || []);
     } catch (err) {
       console.error('Failed to load admin data:', err);
+    }
+  }, []);
+
+  const handleUpdateRole = async (userId, newRole) => {
+    try {
+      await api.adminUpdateUserRole(userId, newRole);
+      showToast(`Role updated to ${newRole}`);
+      loadAll();
+    } catch (err) {
+      showToast(`Failed: ${err.message}`, true);
+    }
+  };
+
+  const handleTimetableCsvParse = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        const rows = results.data;
+        const errs = [];
+        const valid = [];
+
+        rows.forEach((r, i) => {
+          const room = (r.room || r.room_id || '').trim();
+          const day = (r.day || r.day_of_week || 'Monday').trim();
+          const start = (r.start || r.start_time || '').trim();
+          const end = (r.end || r.end_time || '').trim();
+          const subject = (r.subject || r.subject_name || '').trim();
+
+          if (!room || !start || !end || !subject) {
+            errs.push(`Row ${i + 2}: room, start, end, and subject are required.`);
+          } else {
+            valid.push({
+              room_id: room,
+              day_of_week: day,
+              start_time: start,
+              end_time: end,
+              slot_number: Number(r.slot || r.slot_number || 1),
+              subject_name: subject,
+              subject_code: r.subject_code || '',
+              department: r.department || 'CSE',
+              batch: r.batch || 'General',
+              is_lab: String(r.is_lab).toLowerCase() === 'true',
+              faculty_name: r.faculty || r.faculty_name || 'Faculty Member'
+            });
+          }
+        });
+
+        setCsvTimetableErrors(errs);
+        setCsvTimetables(valid);
+      }
+    });
+  };
+
+  const handleConfirmTimetableImport = async () => {
+    if (csvTimetables.length === 0) return;
+    setImportingTimetables(true);
+    try {
+      const res = await api.adminImportTimetables(csvTimetables);
+      showToast(`Imported ${res.count || csvTimetables.length} timetable schedule entries!`);
+      setCsvTimetables([]);
+      loadAll();
+    } catch (err) {
+      showToast(`Import failed: ${err.message}`, true);
     } finally {
-      setLoading(false);
+      setImportingTimetables(false);
     }
   };
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [loadAll]);
 
   const showToast = (message, isError = false) => {
     setFeedback({ message, isError });
@@ -246,6 +322,10 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
       <nav className="nav-segmented-bar" aria-label="Admin Navigation">
         {[
           { id: 'cms', label: 'Dynamic CMS Pages', icon: Layers },
+          { id: 'users', label: `Users & Roles (${usersList.length})`, icon: UserCog },
+          { id: 'timetables-import', label: 'Import Timetable CSV', icon: FileSpreadsheet },
+          { id: 'audit', label: `Security Audit (${auditLogs.length})`, icon: ShieldCheck },
+          { id: 'utilization', label: 'Utilization Engine', icon: BarChart3 },
           { id: 'classrooms', label: `Classrooms (${classrooms.length})`, icon: Building },
           { id: 'timetables', label: `Timetables (${timetables.length})`, icon: Calendar },
           { id: 'reports', label: `Crowd Reports (${reports.length})`, icon: Flag },
@@ -672,6 +752,204 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
             </button>
           </form>
         </div>
+      )}
+
+      {/* TAB: USERS & ROLES */}
+      {activeTab === 'users' && (
+        <div className="card-amrita" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+              User Accounts & Role-Based Access Control (RBAC)
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Server & RLS Enforced Roles
+            </span>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-light)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '0.6rem' }}>User / Full Name</th>
+                  <th style={{ padding: '0.6rem' }}>Roll No / Emp ID</th>
+                  <th style={{ padding: '0.6rem' }}>Department</th>
+                  <th style={{ padding: '0.6rem' }}>Active Role</th>
+                  <th style={{ padding: '0.6rem' }}>Change Privileges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {usersList.map((u) => (
+                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <td style={{ padding: '0.6rem' }}>
+                      <strong>{u.full_name || 'Amrita User'}</strong>
+                    </td>
+                    <td style={{ padding: '0.6rem', color: 'var(--text-secondary)' }}>
+                      {u.roll_no || u.emp_id || '—'}
+                    </td>
+                    <td style={{ padding: '0.6rem' }}>{u.department || 'General'}</td>
+                    <td style={{ padding: '0.6rem' }}>
+                      <span className="badge badge-maroon" style={{ textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.6rem' }}>
+                      <select
+                        value={u.role}
+                        onChange={(e) => handleUpdateRole(u.id, e.target.value)}
+                        style={{
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-light)',
+                          backgroundColor: '#ffffff'
+                        }}
+                      >
+                        <option value="student">Student</option>
+                        <option value="faculty">Faculty</option>
+                        <option value="lab_incharge">Lab In-Charge</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: TIMETABLES CSV BULK IMPORT */}
+      {activeTab === 'timetables-import' && (
+        <div className="card-amrita" style={{ padding: '1.25rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+            Bulk Timetable Schedule CSV Intake
+          </h3>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+            Upload campus timetable master sheets (CSV format: <code>room, day, start, end, slot, subject, faculty, batch, is_lab</code>).
+          </p>
+
+          <div style={{ border: '2px dashed var(--border-light)', padding: '1.5rem', borderRadius: '12px', textAlign: 'center', marginBottom: '1rem' }}>
+            <input
+              type="file"
+              id="admin-timetable-csv"
+              accept=".csv"
+              onChange={handleTimetableCsvParse}
+              style={{ display: 'none' }}
+            />
+            <label htmlFor="admin-timetable-csv" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+              <FileSpreadsheet size={32} color="var(--amrita-maroon)" />
+              <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>Click to select timetable CSV spreadsheet</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Columns: room, day, start, end, slot, subject, faculty, batch</span>
+            </label>
+          </div>
+
+          {csvTimetableErrors.length > 0 && (
+            <div style={{ backgroundColor: '#fff1f2', border: '1px solid #fecdd3', padding: '0.75rem', borderRadius: '8px', marginBottom: '1rem', fontSize: '0.75rem', color: '#9f1239' }}>
+              <strong>Row Errors Detected:</strong>
+              <ul style={{ listStyle: 'disc', paddingLeft: '1.2rem', marginTop: '0.25rem' }}>
+                {csvTimetableErrors.map((e, idx) => <li key={idx}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {csvTimetables.length > 0 && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                  Preview: {csvTimetables.length} Valid Timetable Slots Ready to Import
+                </span>
+                <button
+                  onClick={handleConfirmTimetableImport}
+                  disabled={importingTimetables}
+                  className="btn-amrita"
+                  style={{ fontSize: '0.8rem' }}
+                >
+                  {importingTimetables ? 'Importing...' : 'Commit to Database'}
+                </button>
+              </div>
+
+              <div style={{ maxHeight: '240px', overflowY: 'auto', border: '1px solid var(--border-light)', borderRadius: '8px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+                  <thead style={{ backgroundColor: 'var(--bg-surface-alt)', position: 'sticky', top: 0 }}>
+                    <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--border-light)' }}>
+                      <th style={{ padding: '0.4rem 0.6rem' }}>Room</th>
+                      <th style={{ padding: '0.4rem 0.6rem' }}>Day</th>
+                      <th style={{ padding: '0.4rem 0.6rem' }}>Time</th>
+                      <th style={{ padding: '0.4rem 0.6rem' }}>Subject</th>
+                      <th style={{ padding: '0.4rem 0.6rem' }}>Faculty</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvTimetables.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                        <td style={{ padding: '0.4rem 0.6rem', fontWeight: 700 }}>{r.room_id}</td>
+                        <td style={{ padding: '0.4rem 0.6rem' }}>{r.day_of_week}</td>
+                        <td style={{ padding: '0.4rem 0.6rem' }}>{r.start_time} - {r.end_time}</td>
+                        <td style={{ padding: '0.4rem 0.6rem' }}>{r.subject_name}</td>
+                        <td style={{ padding: '0.4rem 0.6rem' }}>{r.faculty_name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: SECURITY AUDIT LOG */}
+      {activeTab === 'audit' && (
+        <div className="card-amrita" style={{ padding: '1.25rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <ShieldCheck size={18} color="var(--amrita-maroon)" />
+              Security Audit Log
+            </h3>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Tracks logins, role mutations, booking creation & approval
+            </span>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.75rem' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-light)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '0.5rem' }}>Timestamp</th>
+                  <th style={{ padding: '0.5rem' }}>Actor</th>
+                  <th style={{ padding: '0.5rem' }}>Action</th>
+                  <th style={{ padding: '0.5rem' }}>Entity</th>
+                  <th style={{ padding: '0.5rem' }}>Entity ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr key={log.id} style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <td style={{ padding: '0.5rem', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      <strong>{log.profiles?.full_name || 'System / Admin'}</strong>
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      <span className="badge badge-maroon" style={{ fontSize: '0.625rem', fontFamily: 'monospace' }}>
+                        {log.action}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>{log.entity}</td>
+                    <td style={{ padding: '0.5rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                      {log.entity_id || '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB: UTILIZATION DASHBOARD */}
+      {activeTab === 'utilization' && (
+        <UtilizationDashboard />
       )}
 
       {/* Mobile Bottom Navigation */}

@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "title": "അമൃത യുക്തി",
+    "subtitle": "കാമ്പസ് ഇന്നൊവേഷൻ & സ്പേസ് റഡാർ",
+    "login": "ലോഗിൻ",
+    "logout": "ലോഗ് ഔട്ട്",
+    "role": "റോൾ",
+    "studentPortal": "വിദ്യാർത്ഥി ഹബ്ബ്",
+    "facultyPortal": "അധ്യാപക പോർട്ടൽ",
+    "inchargePortal": "ലാബ് ഇൻ-ചാർജ്ജ്",
+    "adminConsole": "അഡ്മിൻ കൺസോൾ",
+    "spaceRadar": "സ്പേസ് റഡാർ",
+    "language": "ഭാഷ"
+  },
+  "portal": {
+    "welcome": "സ്വാഗതം",
+    "innovationFacility": "ഇന്നൊവേഷൻ ലാബ്",
+    "bookSlot": "മെഷീൻ സ്ലോട്ട് ബുക്കിംഗ്",
+    "inventorySearch": "കംപോണന്റ് സ്റ്റോക്ക്",
+    "myBookings": "എന്റെ ബുക്കിംഗുകൾ",
+    "jobIntake": "വർക്ക് ഓർഡറുകൾ",
+    "vacantClassrooms": "ക്ലാസ്സ് മുറി റഡാർ",
+    "markVacant": "ക്ലാസ്സ് ഒഴിഞ്ഞതായി അടയാളപ്പെടുത്തുക",
+    "reserveRoom": "ക്ലാസ്സ് റിസർവേഷൻ",
+    "orderComponents": "മെറ്റീരിയൽ അഭ്യർത്ഥന",
+    "auditLog": "സുരക്ഷാ ഓഡിറ്റ് ലോഗ്",
+    "utilization": "ഉപയോഗ വിശകലനം",
+    "sampleData": "സാമ്പിൾ ഡാറ്റ"
+  },
+  "status": {
+    "pending": "അംഗീകാരത്തിനായി കാത്തിരിക്കുന്നു",
+    "approved": "അംഗീകരിച്ചു",
+    "rejected": "നിരസിച്ചു",
+    "cancelled": "റദ്ദാക്കി",
+    "in_progress": "പുരോഗമിക്കുന്നു",
+    "done": "പൂർത്തിയായി",
+    "available": "ലഭ്യമാണ്",
+    "occupied": "ഉപയോഗത്തിലാണ്",
+    "flagged": "ഷെഡ്യൂൾ ചെയ്യാത്ത ഉപയോഗം"
+  },
+  "common": {
+    "submit": "സമർപ്പിക്കുക",
+    "cancel": "റദ്ദാക്കുക",
+    "confirm": "സ്ഥിരീകരിക്കുക",
+    "search": "തിരയുക...",
+    "loading": "ലോഡ് ചെയ്യുന്നു...",
+    "error": "പിശക്",
+    "success": "വിജയം",
+    "talkToHuman": "സഹായ ഡെസ്ക്",
+    "voiceAssistant": "വോയ്സ് അസിസ്റ്റന്റ്"
+  }
+}

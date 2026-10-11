@@ -1,0 +1,52 @@
+{
+  "nav": {
+    "title": "அம்ரிதா யுக்தி",
+    "subtitle": "வளாகக் கண்டுபிடிப்பு மற்றும் இட ஒதுக்கீடு",
+    "login": "உள்நுழை",
+    "logout": "வெளியேறு",
+    "role": "பங்கு",
+    "studentPortal": "மாணவர் தளம்",
+    "facultyPortal": "பேராசிரியர் தளம்",
+    "inchargePortal": "ஆய்வகப் பொறுப்பாளர்",
+    "adminConsole": "நிர்வாக மையம்",
+    "spaceRadar": "இட ரேடார்",
+    "language": "மொழி"
+  },
+  "portal": {
+    "welcome": "நல்வரவு",
+    "innovationFacility": "கண்டுபிடிப்பு ஆய்வகம்",
+    "bookSlot": "இயந்திர முன்பதிவு",
+    "inventorySearch": "கூறு பொருள் இருப்பு",
+    "myBookings": "எனது முன்பதிவுகள்",
+    "jobIntake": "ஃபேப்லாப் பணி ஆணைகள்",
+    "vacantClassrooms": "வகுப்பறை ரேடார்",
+    "markVacant": "வகுப்பை காலியாகக் குறி",
+    "reserveRoom": "காலி வகுப்பறை முன்பதிவு",
+    "orderComponents": "பொருள் கோரிக்கை",
+    "auditLog": "பாதுகாப்பு தணிக்கை",
+    "utilization": "பயன்பாட்டு பகுப்பாய்வு",
+    "sampleData": "மாதிரித் தரவு"
+  },
+  "status": {
+    "pending": "ஒப்புதலுக்காகக் காத்திருக்கிறது",
+    "approved": "அங்கீகரிக்கப்பட்டது",
+    "rejected": "நிராகரிக்கப்பட்டது",
+    "cancelled": "ரத்து செய்யப்பட்டது",
+    "in_progress": "நடைபெறுகிறது",
+    "done": "முடிக்கப்பட்டது",
+    "available": "தற்போது கிடைக்கிறது",
+    "occupied": "பயன்பாட்டில் உள்ளது",
+    "flagged": "திட்டமிடப்படாத பயன்பாடு"
+  },
+  "common": {
+    "submit": "சமர்ப்பி",
+    "cancel": "ரத்து செய்",
+    "confirm": "உறுதிப்படுத்து",
+    "search": "தேடுக...",
+    "loading": "ஏற்றுகிறது...",
+    "error": "பிழை",
+    "success": "வெற்றி",
+    "talkToHuman": "நேரடி உதவி",
+    "voiceAssistant": "குரல் உதவியாளர்"
+  }
+}
