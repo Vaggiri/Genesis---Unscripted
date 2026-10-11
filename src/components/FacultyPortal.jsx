@@ -10,7 +10,8 @@ import {
   Bot, 
   Sparkles, 
   BookOpen,
-  LogOut
+  LogOut,
+  ArrowLeft
 } from 'lucide-react';
 import FacultyApprovalsView from './FacultyApprovalsView';
 import ClassroomOccupancyModule from './ClassroomOccupancyModule';
@@ -19,6 +20,24 @@ import SmartLabFinderBot from './SmartLabFinderBot';
 
 export default function FacultyPortal({ user, simulatedContext, bookings = [], onApprove, onReject, onNewBooking, onLogout }) {
   const [activeTab, setActiveTab] = useState('approvals'); // 'approvals' | 'classrooms' | 'bot' | 'directory' | 'profile'
+  const [previousTab, setPreviousTab] = useState(null);
+
+  const handleTabChange = (newTab) => {
+    if (newTab !== activeTab) {
+      setPreviousTab(activeTab);
+      setActiveTab(newTab);
+    }
+  };
+
+  const handleBack = () => {
+    if (previousTab) {
+      const prev = previousTab;
+      setPreviousTab(null);
+      setActiveTab(prev);
+    } else {
+      setActiveTab('approvals');
+    }
+  };
 
   const pendingCount = bookings.filter(b => b.status === 'pending').length;
 
@@ -118,7 +137,7 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`nav-segment-item ${isActive ? 'active' : ''}`}
             >
               <Icon size={16} />
@@ -130,6 +149,46 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
           );
         })}
       </nav>
+
+      {/* Universal Page Back Navigation Button */}
+      {(activeTab !== 'approvals' || previousTab) && (
+        <div style={{ 
+          marginBottom: '1rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          <button
+            type="button"
+            onClick={handleBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '8px',
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-light)',
+              color: 'var(--text-main)',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Go back to previous page"
+          >
+            <ArrowLeft size={16} color="var(--amrita-maroon)" />
+            <span>Back {previousTab ? `to ${facultyTabs.find(t => t.id === previousTab)?.label || 'Previous'}` : 'to Approvals Queue'}</span>
+          </button>
+
+          <span className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Viewing {facultyTabs.find(t => t.id === activeTab)?.label}
+          </span>
+        </div>
+      )}
 
       {/* Active Tab View */}
       <div>
@@ -283,7 +342,7 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`mobile-nav-item ${isActive ? 'active' : ''}`}
             >
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

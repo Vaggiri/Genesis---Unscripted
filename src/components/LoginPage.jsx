@@ -13,7 +13,8 @@ import {
   EyeOff, 
   UserPlus, 
   LogIn,
-  Sparkles
+  Sparkles,
+  ArrowLeft
 } from 'lucide-react';
 import { 
   loginWithCredentials, 
@@ -466,6 +467,30 @@ export default function LoginPage({ onLoginSuccess }) {
             /* MODE 2: SIGN UP / REGISTER NEW USER */
             <form onSubmit={handleSignupSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               
+              <div style={{ marginBottom: '0.2rem' }}>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('login'); setError(''); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border-light)',
+                    fontSize: '0.785rem',
+                    fontWeight: 600,
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                  title="Return to Sign In"
+                >
+                  <ArrowLeft size={14} color="var(--amrita-maroon)" />
+                  <span>Back to Sign In</span>
+                </button>
+              </div>
+
               <div>
                 <label style={{ display: 'block', fontSize: '0.775rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.3rem' }}>
                   Registering As (Role) <span style={{ color: 'var(--amrita-maroon)' }}>*</span>

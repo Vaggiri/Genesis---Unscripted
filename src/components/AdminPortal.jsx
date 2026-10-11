@@ -12,12 +12,32 @@ import {
   Layers, 
   Clock, 
   Users, 
-  Edit3
+  Edit3,
+  ArrowLeft
 } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, onSaveSettings }) {
   const [activeTab, setActiveTab] = useState('cms'); // 'cms' | 'classrooms' | 'timetables' | 'reports' | 'settings'
+  const [previousTab, setPreviousTab] = useState(null);
+
+  const handleTabChange = (newTab) => {
+    if (newTab !== activeTab) {
+      setPreviousTab(activeTab);
+      setActiveTab(newTab);
+    }
+  };
+
+  const handleBack = () => {
+    if (previousTab) {
+      const prev = previousTab;
+      setPreviousTab(null);
+      setActiveTab(prev);
+    } else {
+      setActiveTab('cms');
+    }
+  };
+
   const [pages, setPages] = useState(pagesConfig || []);
   const [classrooms, setClassrooms] = useState([]);
   const [timetables, setTimetables] = useState([]);
@@ -237,7 +257,7 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`nav-segment-item ${isActive ? 'active' : ''}`}
             >
               <Icon size={16} />
@@ -246,6 +266,46 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
           );
         })}
       </nav>
+
+      {/* Universal Page Back Navigation Button */}
+      {(activeTab !== 'cms' || previousTab) && (
+        <div style={{ 
+          marginBottom: '1rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          <button
+            type="button"
+            onClick={handleBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '8px',
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-light)',
+              color: 'var(--text-main)',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Go back to previous page"
+          >
+            <ArrowLeft size={16} color="var(--amrita-maroon)" />
+            <span>Back {previousTab ? 'to Previous Section' : 'to CMS Pages'}</span>
+          </button>
+
+          <span className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Active Section: {activeTab.toUpperCase()}
+          </span>
+        </div>
+      )}
 
       {/* TAB 1: DYNAMIC CMS PAGE EDITOR */}
       {activeTab === 'cms' && (

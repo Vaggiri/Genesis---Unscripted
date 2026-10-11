@@ -12,6 +12,7 @@ import {
   AlertCircle,
   Building,
   ArrowRight,
+  ArrowLeft,
   RefreshCw,
   Zap
 } from 'lucide-react';
@@ -402,9 +403,32 @@ export default function SmartLabFinderBot({ user, onBookingSubmitted }) {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
-              <span className="badge badge-maroon" style={{ marginBottom: '0.35rem' }}>
-                Recommended Facility Match
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem', flexWrap: 'wrap' }}>
+                <span className="badge badge-maroon">
+                  Recommended Facility Match
+                </span>
+                <button
+                  type="button"
+                  onClick={() => { setSuggestedMatch(null); setSelectedSlot(''); setBookingSuccess(false); }}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '0.2rem 0.55rem',
+                    borderRadius: '6px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid var(--border-light)',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: 'var(--text-secondary)'
+                  }}
+                  title="Discard match and return to query"
+                >
+                  <ArrowLeft size={12} color="var(--amrita-maroon)" />
+                  <span>Back to Query</span>
+                </button>
+              </div>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                 {suggestedMatch.lab.name}
               </h3>

@@ -15,7 +15,8 @@ import {
   Layers,
   Check,
   ChevronRight,
-  LogOut
+  LogOut,
+  ArrowLeft
 } from 'lucide-react';
 import SmartLabFinderBot from './SmartLabFinderBot';
 import LabDirectoryView from './LabDirectoryView';
@@ -24,6 +25,24 @@ import ClassroomOccupancyModule from './ClassroomOccupancyModule';
 export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking, onLogout }) {
   // Main Navigation Tabs
   const [activeTab, setActiveTab] = useState('ai_bot'); // 'ai_bot' | 'directory' | 'my_bookings' | 'classrooms' | 'profile'
+  const [previousTab, setPreviousTab] = useState(null);
+
+  const handleTabChange = (newTab) => {
+    if (newTab !== activeTab) {
+      setPreviousTab(activeTab);
+      setActiveTab(newTab);
+    }
+  };
+
+  const handleBack = () => {
+    if (previousTab) {
+      const prev = previousTab;
+      setPreviousTab(null);
+      setActiveTab(prev);
+    } else {
+      setActiveTab('ai_bot');
+    }
+  };
 
   const myBookings = bookings.filter(b => b.studentRoll === user?.roll_no);
 
@@ -119,7 +138,7 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`nav-segment-item ${isActive ? 'active' : ''}`}
             >
               <Icon size={16} />
@@ -131,6 +150,46 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
           );
         })}
       </nav>
+
+      {/* Universal Page Back Navigation Button */}
+      {(activeTab !== 'ai_bot' || previousTab) && (
+        <div style={{ 
+          marginBottom: '1rem', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '0.5rem'
+        }}>
+          <button
+            type="button"
+            onClick={handleBack}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '0.45rem 0.95rem',
+              borderRadius: '8px',
+              backgroundColor: '#ffffff',
+              border: '1px solid var(--border-light)',
+              color: 'var(--text-main)',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+              transition: 'all 0.15s ease'
+            }}
+            title="Go back to previous page"
+          >
+            <ArrowLeft size={16} color="var(--amrita-maroon)" />
+            <span>Back {previousTab ? `to ${navTabs.find(t => t.id === previousTab)?.label || 'Previous'}` : 'to AI Matcher'}</span>
+          </button>
+
+          <span className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Viewing {navTabs.find(t => t.id === activeTab)?.label}
+          </span>
+        </div>
+      )}
 
       {/* Active Tab Container */}
       <div>
@@ -366,7 +425,7 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => handleTabChange(tab.id)}
               className={`mobile-nav-item ${isActive ? 'active' : ''}`}
             >
               <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
