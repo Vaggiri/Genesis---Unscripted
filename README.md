@@ -21,23 +21,50 @@ Engineering campuses house specialized prototyping equipment (3D printers, PCB m
 
 ---
 
-## 🛠️ Architecture & Technical Stack
+## 📚 Complete Project Documentation Index
 
-For complete technical specifications, see [**TECH_STACK.md**](./TECH_STACK.md).
+All detailed architecture, database, security, and setup guides are organized under [`docs/`](./docs/):
 
-* **Frontend:** React 19 (`19.2.8`), Vite 8 (`8.3.4`), Vanilla CSS3 with Amrita Maroon identity tokens (`#A4123F`), Lucide React icons, `react-i18next`.
-* **Backend:** Node.js (ESM), Express 5 (`5.3.0`), Helmet security headers, rate limiting, and Zod schema validation.
-* **Database & Auth:** Supabase PostgreSQL 15 with Row Level Security (RLS), Supabase Auth with `@cb.amrita.edu` college domain verification, and Supabase Realtime WebSocket events.
-* **Scheduling:** Earliest-available-resource interval scheduling algorithm (`server/lib/scheduler.js`) with UTC and timezone safety.
-* **3D & File Verification:** Client-side binary/ASCII STL parser using signed tetrahedra geometry + server-side magic-byte validator.
+| Documentation Guide | Focus Area & Description |
+| :--- | :--- |
+| [**01. Project Overview**](./docs/01-PROJECT-OVERVIEW.md) | Campus problem statement, user personas, scope boundaries, and core novelty. |
+| [**02. Features Breakdown**](./docs/02-FEATURES.md) | Detailed feature inventory mapped by role (`student`, `faculty`, `incharge`, `admin`) to code files. |
+| [**03. System Architecture**](./docs/03-ARCHITECTURE.md) | Topology diagram, sequence flows, traffic management, rate limits, and IST timezone handling. |
+| [**04. Database Schema & RLS**](./docs/04-DATABASE.md) | 16 PostgreSQL tables, constraints, triggers, RLS policies, and ER diagram. |
+| [**05. REST API Reference**](./docs/05-API-REFERENCE.md) | Complete Express 5 endpoint catalog with auth requirements, payload schemas, and responses. |
+| [**06. Scheduling Algorithm**](./docs/06-ALGORITHM.md) | Earliest-slot mathematical formulation, 15-min grid snapping, test trace, and complexity. |
+| [**07. Security & Threat Model**](./docs/07-SECURITY.md) | 17-threat worst-case matrix, privilege locks, residual risks, and secret rotation runbook. |
+| [**08. Zero-to-Running Setup Guide**](./docs/08-SETUP-GUIDE.md) | Beginner-proof local setup, complete environment variable table, and token acquisition. |
+| [**09. Vercel & Cloud Deployment**](./docs/09-DEPLOYMENT.md) | Vercel serverless configuration, edge rewrites, instant rollbacks, and keep-alive procedures. |
+| [**10. Live Demonstration Script**](./docs/10-DEMO-SCRIPT.md) | 8–10 minute minute-by-minute presentation script with click walkthroughs and backup plans. |
+| [**11. Testing & Verification**](./docs/11-TESTING.md) | Vitest test suite inventory (18 tests), concurrency stress script, and rate limit demo. |
+| [**12. Reviewer Defense Q&A**](./docs/12-REVIEW-QA.md) | 40+ evaluator questions and honest, technically grounded answers. |
+| [**13. Known Limitations & Roadmap**](./docs/13-LIMITATIONS-ROADMAP.md) | Honest prototype boundaries and phased 3-stage campus rollout roadmap. |
+| [**14. Operational Troubleshooting**](./docs/14-TROUBLESHOOTING.md) | Diagnostic symptom $\rightarrow$ cause $\rightarrow$ fix table for common setup and demo errors. |
+| [**Technical Glossary**](./docs/GLOSSARY.md) | Definitions of RLS, `btree_gist`, signed tetrahedra, STL, Gerber, and Web Speech API. |
+| [**Review Cheatsheet**](./docs/REVIEW-CHEATSHEET.md) | 1-page high-density briefing: 10 headline facts, 5 strengths, 5 limitations, and 60s pitch. |
+| [**10-Slide Pitch Deck Outline**](./docs/PITCH-OUTLINE.md) | Slide-by-slide outline for the GENESIS hackathon panel presentation. |
+| [**Deliverables Checklist**](./docs/CHECKLIST.md) | Full audit checklist of documentation deliverables and automated quality gates. |
 
 ---
 
-## 🚀 Quick Start
+## 🛠️ Architecture & Technical Stack Summary
+
+* **Frontend:** React 19 (`19.2.8`), Vite 8 (`8.3.4`), Vanilla CSS3 with Amrita Maroon identity tokens (`#A4123F`), Lucide React icons, `react-i18next`.
+* **Backend:** Node.js (ESM), Express 5 (`5.3.0`), Helmet security headers, dual-tier rate limiting, and Zod schema validation.
+* **Database & Auth:** Supabase PostgreSQL 15 with Row Level Security (RLS), Supabase Auth with `@cb.amrita.edu` college domain verification, and Supabase Realtime WebSocket events.
+* **Scheduling:** Earliest-available-resource interval scheduling algorithm ([`server/lib/scheduler.js`](./server/lib/scheduler.js)) with UTC and timezone safety.
+* **3D & File Verification:** Client-side binary/ASCII STL parser using signed tetrahedra geometry + server-side magic-byte validator.
+
+For technical stack specifics, see [**TECH_STACK.md**](./TECH_STACK.md).
+
+---
+
+## 🚀 Quick Start (Local Setup)
 
 ### 1. Install Dependencies
 ```bash
-npm install
+npm ci
 ```
 
 ### 2. Configure Environment Variables
@@ -45,10 +72,11 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Fill in your Supabase project credentials:
+Fill in your Supabase project credentials in `.env`:
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 PORT=5000
 DEMO_PASSWORD=YourSecureDemoPassword2026!
@@ -80,11 +108,11 @@ npm run dev:all
 
 ## 🧪 Testing & Verification
 
-* **Unit Tests:**
+* **Unit Tests (Vitest):**
   ```bash
   npm test
   ```
-  Runs 18 unit tests across 3 suites validating scheduler calendar fit, analytics calculations, and Gemini chatbot fallback handling with Vitest.
+  Runs 18 unit tests across 3 suites validating scheduler calendar fit, analytics calculations, and Gemini chatbot fallback handling.
 
 * **Concurrency Stress Test:**
   ```bash
@@ -100,7 +128,7 @@ npm run dev:all
 
 * **Static Code Analysis:**
   ```bash
-  npm run lint
+  npx oxlint
   npm run build
   ```
 
@@ -108,7 +136,7 @@ npm run dev:all
 
 ## 👥 Demo User Personas
 
-All seeded demo accounts authenticate via Supabase Auth:
+All seeded demo accounts authenticate via Supabase Auth with `DEMO_PASSWORD`:
 
 | Role | Email Identifier | Access Privileges |
 | :--- | :--- | :--- |
@@ -116,16 +144,6 @@ All seeded demo accounts authenticate via Supabase Auth:
 | **Faculty Member** | `faculty.demo@cb.amrita.edu` | Classroom reservation, student slot approvals, component orders |
 | **Lab In-Charge** | `incharge.demo@cb.amrita.edu` | 3D print/PCB queue management, CSV inventory import, job status transitions |
 | **Administrator** | `admin.demo@cb.amrita.edu` | User role management, timetable CSV bulk import, security audit log |
-
-*(Password for all seeded demo accounts is set via `DEMO_PASSWORD` in your `.env` file).*
-
----
-
-## 🔒 Security Principles
-* **No Plain-Text Credentials:** Passwords are never stored in localStorage, client state, or source code.
-* **Role Verification:** User roles are strictly derived from `public.profiles.role` on the server and guarded by PostgreSQL RLS.
-* **Service Role Hygiene:** `SUPABASE_SERVICE_ROLE_KEY` is only used server-side and never exposed to the client bundle.
-* **Input Validation & DoS Protection:** All CSV inputs and request bodies are validated with Zod, and rate limiters restrict aggressive API bursts.
 
 ---
 
