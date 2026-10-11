@@ -1,0 +1,1646 @@
+From 657d20b30c0b3f14adbb47c12dbb68329559df2f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sun, 11 Oct 2026 06:19:46 +0000
+Subject: [PATCH] fix: security hardening, real analytics, IST handling,
+ booking/inventory correctness
+
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01YCas5B4cLwwu7TVYgMvyJt
+---
+ .env.example                               |   2 +-
+ BUILD_SPEC.md => docs/BUILD_SPEC.md        |   0
+ docs/SECURITY_FIXES.md                     |  22 ++
+ scripts/seed-demo-users.mjs                |  10 +-
+ server/lib/analyticsCalc.js                | 107 ++++++
+ server/lib/scheduler.js                    |  29 +-
+ server/lib/supabase.js                     |   3 +-
+ server/lib/time.js                         |  24 ++
+ server/middleware/auth.js                  |   5 +-
+ server/middleware/security.js              |   2 +-
+ server/routes/admin.js                     |   1 -
+ server/routes/analytics.js                 |  99 ++----
+ server/routes/bookings.js                  | 246 ++++++++------
+ server/routes/chat.js                      |  13 +-
+ server/routes/inventory.js                 |  28 +-
+ server/routes/jobs.js                      |  14 +-
+ server/server.js                           |  16 +-
+ server/tests/analytics.test.js             |  49 +++
+ server/tests/scheduler.test.js             |  24 ++
+ src/components/UtilizationDashboard.jsx    |  25 +-
+ supabase/migrations/004_security_fixes.sql | 104 ++++++
+ supabase_schema.sql                        | 374 ---------------------
+ 22 files changed, 582 insertions(+), 615 deletions(-)
+ rename BUILD_SPEC.md => docs/BUILD_SPEC.md (100%)
+ create mode 100644 docs/SECURITY_FIXES.md
+ create mode 100644 server/lib/analyticsCalc.js
+ create mode 100644 server/lib/time.js
+ create mode 100644 server/tests/analytics.test.js
+ create mode 100644 supabase/migrations/004_security_fixes.sql
+ delete mode 100644 supabase_schema.sql
+
+diff --git a/.env.example b/.env.example
+index 694b7a0..67d5461 100644
+--- a/.env.example
++++ b/.env.example
+@@ -27,4 +27,4 @@ DEMO_OFFLINE=false
+ # Optional Gemini API key for chatbot low-confidence intent clarification (server-side only)
+ GEMINI_API_KEY=
+ # Password used by scripts/seed-demo-users.mjs
+-DEMO_PASSWORD=AmritaYukti2026!
++DEMO_PASSWORD=
+diff --git a/BUILD_SPEC.md b/docs/BUILD_SPEC.md
+similarity index 100%
+rename from BUILD_SPEC.md
+rename to docs/BUILD_SPEC.md
+diff --git a/docs/SECURITY_FIXES.md b/docs/SECURITY_FIXES.md
+new file mode 100644
+index 0000000..35b3d1f
+--- /dev/null
++++ b/docs/SECURITY_FIXES.md
+@@ -0,0 +1,22 @@
++# Security & correctness fixes (post-review)
++
++Run `supabase/migrations/004_security_fixes.sql` in the Supabase SQL editor after 001–003.
++
++| # | Fix | Where |
++|---|-----|-------|
++| 1 | Role is always `student` at signup; role changes only by admin/service role; college-domain enforced in DB | 004 SQL (`handle_new_user`, `guard_profile_update`) |
++| 2 | Students cannot write jobs/bookings directly via Supabase (no self-approval); all writes go through Express | 004 SQL policies |
++| 3 | PII endpoints need login; analytics/reports are staff-only | `server.js`, `bookings.js`, `analytics.js` |
++| 4 | `DEMO_OFFLINE` ignored in production/Vercel; default demo role is `student` | `middleware/auth.js` |
++| 5 | `trust proxy` set (correct rate-limit IP on Vercel) | `server.js` |
++| 6 | No default demo password; seed script requires `DEMO_PASSWORD` | `scripts/seed-demo-users.mjs`, `.env.example` |
++| 7 | Real analytics (no `Math.random`, no fabricated minimums) | `lib/analyticsCalc.js` |
++| 8 | Booking PATCH: state machine, no self-approval, lab in-charge scoping, race-safe | `routes/bookings.js` |
++| 9 | Check-in: owner only, approved only, time window | `routes/bookings.js` |
++| 10 | IST handling for working hours, "today", day-of-week | `lib/time.js`, `lib/scheduler.js` (`tzOffsetMin`) |
++| 11 | Idempotent inventory import (`item_key` unique), lab in-charge scoping | `routes/inventory.js`, 004 SQL |
++| 12 | Chat requires login, input length cap, no internal error text | `routes/chat.js` |
++| 13 | Server never falls back to the anon key | `lib/supabase.js` |
++
++Known limitation: `/jobs/verify-content` still inspects a header sent by the browser (now authenticated and size-capped).
++Upload the file to Supabase Storage and inspect it server-side for full assurance.
+diff --git a/scripts/seed-demo-users.mjs b/scripts/seed-demo-users.mjs
+index dd7f28d..998b236 100644
+--- a/scripts/seed-demo-users.mjs
++++ b/scripts/seed-demo-users.mjs
+@@ -12,7 +12,12 @@ dotenv.config();
+ 
+ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+-const demoPassword = process.env.DEMO_PASSWORD || 'AmritaYukti2026!';
++const demoPassword = process.env.DEMO_PASSWORD;
++
++if (!demoPassword || demoPassword.length < 12) {
++  console.error('❌ Error: set DEMO_PASSWORD (min 12 chars) in .env. No default is provided.');
++  process.exit(1);
++}
+ 
+ if (!supabaseUrl || !serviceRoleKey || supabaseUrl.includes('YOUR-PROJECT')) {
+   console.error('❌ Error: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be provided in .env to seed demo users.');
+@@ -73,8 +78,7 @@ async function seed() {
+         password: demoPassword,
+         email_confirm: true,
+         user_metadata: {
+-          full_name: acc.full_name,
+-          role: acc.role
++          full_name: acc.full_name
+         }
+       });
+ 
+diff --git a/server/lib/analyticsCalc.js b/server/lib/analyticsCalc.js
+new file mode 100644
+index 0000000..ae7cff3
+--- /dev/null
++++ b/server/lib/analyticsCalc.js
+@@ -0,0 +1,107 @@
++/**
++ * server/lib/analyticsCalc.js — pure functions computing utilization metrics from real bookings.
++ * No randomness, no hard-coded sample numbers.
++ */
++import { IST_OFFSET_MIN } from './time.js';
++
++const WORK_START_H = 8.5;   // 08:30
++const WORK_END_H = 17.5;    // 17:30
++const HOURS_PER_DAY = WORK_END_H - WORK_START_H;
++const SHIFT = IST_OFFSET_MIN * 60000;
++
++const istParts = (iso) => {
++  const d = new Date(new Date(iso).getTime() + SHIFT);
++  return { dow: d.getUTCDay(), hour: d.getUTCHours() + d.getUTCMinutes() / 60 };
++};
++
++function weekdaysBetween(fromMs, toMs) {
++  let n = 0;
++  for (let t = fromMs; t < toMs; t += 86400000) {
++    const dow = new Date(t + SHIFT).getUTCDay();
++    if (dow !== 0 && dow !== 6) n++;
++  }
++  return Math.max(n, 1);
++}
++
++export function computeUtilization({ bookings = [], resources = [], fromMs, toMs }) {
++  const used = bookings.filter(b => ['approved', 'completed'].includes(b.status) || b.status === 'no_show');
++  const honoured = bookings.filter(b => ['approved', 'completed'].includes(b.status));
++  const hours = (b) => Math.max(0, (new Date(b.end_ts) - new Date(b.start_ts)) / 3600000);
++
++  const usableResources = resources.filter(r => r.status === 'ok');
++  const capacityHours = usableResources.length * HOURS_PER_DAY * weekdaysBetween(fromMs, toMs);
++  const bookedHours = honoured.reduce((s, b) => s + hours(b), 0);
++  const utilizationRate = capacityHours > 0 ? Math.min(100, Math.round((bookedHours / capacityHours) * 100)) : 0;
++
++  const noShows = bookings.filter(b => b.status === 'no_show').length;
++  const decided = used.length;
++  const noShowRate = decided > 0 ? Math.round((noShows / decided) * 100) : 0;
++
++  const counts = {};
++  for (const b of bookings) {
++    const name = b.resources?.name || b.resource_id;
++    counts[name] = (counts[name] || 0) + 1;
++  }
++  const topEquipment = Object.entries(counts).map(([name, count]) => ({ name, count }))
++    .sort((a, b) => b.count - a.count).slice(0, 5);
++
++  const hourDistribution = [];
++  for (let h = 8; h <= 17; h++) hourDistribution.push({ hour: `${h}:00`, count: 0 });
++  const grid = {}; // dow -> bucket -> hours
++  const buckets = ['09:00', '11:00', '14:00', '16:00'];
++  const bucketStart = [9, 11, 14, 16];
++  for (const b of honoured) {
++    const { dow, hour } = istParts(b.start_ts);
++    const slot = hourDistribution.find(x => x.hour === `${Math.floor(hour)}:00`);
++    if (slot) slot.count++;
++    let idx = -1;
++    bucketStart.forEach((s, i) => { if (hour >= s) idx = i; });
++    if (idx >= 0 && dow >= 1 && dow <= 5) {
++      grid[dow] = grid[dow] || {};
++      grid[dow][idx] = (grid[dow][idx] || 0) + hours(b);
++    }
++  }
++  const perCellCapacity = usableResources.length * 2 * Math.max(1, weekdaysBetween(fromMs, toMs) / 5);
++  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
++  const heatmap = dayNames.map((day, i) => ({
++    day,
++    slots: buckets.map((hour, bi) => ({
++      hour,
++      intensity: perCellCapacity > 0
++        ? Math.min(100, Math.round((((grid[i + 1] || {})[bi]) || 0) / perCellCapacity * 100))
++        : 0
++    }))
++  }));
++
++  // Queue-style what-if: adding one machine of the busiest kind scales wait by n/(n+1)
++  const waits = honoured.map(b => (new Date(b.start_ts) - new Date(b.created_at)) / 3600000).filter(w => w >= 0);
++  const avgWait = waits.length ? waits.reduce((s, w) => s + w, 0) / waits.length : 0;
++  const kindCount = {};
++  for (const b of honoured) {
++    const k = b.resources?.kind;
++    if (k) kindCount[k] = (kindCount[k] || 0) + 1;
++  }
++  const busiestKind = Object.entries(kindCount).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
++  const n = busiestKind ? Math.max(1, usableResources.filter(r => r.kind === busiestKind).length) : 1;
++  const projected = avgWait * n / (n + 1);
++  const weeks = Math.max(1, (toMs - fromMs) / (7 * 86400000));
++  const simulation = {
++    machineKind: busiestKind,
++    currentAvgWaitHours: Math.round(avgWait * 10) / 10,
++    projectedAvgWaitHours: Math.round(projected * 10) / 10,
++    reductionPercent: avgWait > 0 ? Math.round((1 - projected / avgWait) * 100) : 0,
++    extraThroughputJobsWeek: busiestKind ? Math.round((kindCount[busiestKind] / n) / weeks) : 0,
++    method: 'Estimate: wait scales as n/(n+1) when one machine is added to a pool of n.'
++  };
++
++  return {
++    isSampleData: bookings.length === 0,
++    totalBookings: bookings.length,
++    utilizationRate,
++    noShowRate,
++    topEquipment,
++    hourDistribution,
++    heatmap,
++    simulation
++  };
++}
+diff --git a/server/lib/scheduler.js b/server/lib/scheduler.js
+index 818c98e..3099cde 100644
+--- a/server/lib/scheduler.js
++++ b/server/lib/scheduler.js
+@@ -32,7 +32,7 @@ export function findEarliestSlot({
+   existingBookings = [],
+   maxDays = 7,
+   limit = 4,
+-  utc = true // Default to UTC for serverless/PostgreSQL standard timestamps
++  tzOffsetMin = 0 // working hours are interpreted in this UTC offset (campus passes 330 = IST)
+ }) {
+   if (!candidates || candidates.length === 0 || durationMin <= 0) {
+     return { best: null, alternatives: [] };
+@@ -68,22 +68,17 @@ export function findEarliestSlot({
+       .sort((a, b) => a.start - b.start);
+ 
+     for (let dayOffset = 0; dayOffset < maxDays; dayOffset++) {
+-      const dayStart = new Date(startLimit);
+-      const dayEnd = new Date(startLimit);
+-
+-      if (utc) {
+-        dayStart.setUTCDate(dayStart.getUTCDate() + dayOffset);
+-        dayStart.setUTCHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
+-
+-        dayEnd.setUTCDate(dayEnd.getUTCDate() + dayOffset);
+-        dayEnd.setUTCHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
+-      } else {
+-        dayStart.setDate(dayStart.getDate() + dayOffset);
+-        dayStart.setHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
+-
+-        dayEnd.setDate(dayEnd.getDate() + dayOffset);
+-        dayEnd.setHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
+-      }
++      const shift = tzOffsetMin * 60000;
++      const localBase = new Date(startLimit.getTime() + shift);
++      const dayStart = new Date(localBase);
++      const dayEnd = new Date(localBase);
++      dayStart.setUTCDate(dayStart.getUTCDate() + dayOffset);
++      dayStart.setUTCHours(Math.floor(workStartMin / 60), workStartMin % 60, 0, 0);
++      dayEnd.setUTCDate(dayEnd.getUTCDate() + dayOffset);
++      dayEnd.setUTCHours(Math.floor(workEndMin / 60), workEndMin % 60, 0, 0);
++      // convert back from campus-local to real UTC instants
++      dayStart.setTime(dayStart.getTime() - shift);
++      dayEnd.setTime(dayEnd.getTime() - shift);
+ 
+       let windowCursor = ceilToGrid(new Date(Math.max(dayStart.getTime(), startLimit.getTime())), 15);
+ 
+diff --git a/server/lib/supabase.js b/server/lib/supabase.js
+index b03e719..34da640 100644
+--- a/server/lib/supabase.js
++++ b/server/lib/supabase.js
+@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
+ dotenv.config();
+ 
+ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
++// Server MUST use the service-role key (never fall back to the anon key).
++const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+ 
+ let supabase = null;
+ 
+diff --git a/server/lib/time.js b/server/lib/time.js
+new file mode 100644
+index 0000000..a21af3a
+--- /dev/null
++++ b/server/lib/time.js
+@@ -0,0 +1,24 @@
++/**
++ * server/lib/time.js — Campus time (IST, UTC+05:30) helpers.
++ * Vercel/Node runs in UTC; all campus-facing "today / now / day-of-week" must use IST.
++ */
++export const IST_OFFSET_MIN = 330;
++const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
++
++export function istNow(date = new Date()) {
++  const shifted = new Date(date.getTime() + IST_OFFSET_MIN * 60000);
++  const pad = (n) => String(n).padStart(2, '0');
++  return {
++    day: DAYS[shifted.getUTCDay()],
++    time: `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`,
++    hour: shifted.getUTCHours(),
++    dateStr: shifted.toISOString().split('T')[0]
++  };
++}
++
++/** UTC ISO bounds [start, end] of an IST calendar date (YYYY-MM-DD). */
++export function istDayBounds(dateStr) {
++  const start = new Date(`${dateStr}T00:00:00+05:30`);
++  if (Number.isNaN(start.getTime())) return null;
++  return { start: start.toISOString(), end: new Date(start.getTime() + 24 * 3600 * 1000).toISOString() };
++}
+diff --git a/server/middleware/auth.js b/server/middleware/auth.js
+index ea00cc2..33a420b 100644
+--- a/server/middleware/auth.js
++++ b/server/middleware/auth.js
+@@ -16,9 +16,10 @@ export async function requireAuth(req, res, next) {
+   if (!supabase) {
+     // If running in pure offline demo mode without Supabase connected:
+     // Allow demo mock token for local testing if DEMO_OFFLINE=true
+-    if (process.env.DEMO_OFFLINE === 'true') {
++    if (process.env.DEMO_OFFLINE === 'true' && process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+       req.user = { id: 'demo-user-id', email: 'demo@cb.amrita.edu' };
+-      const demoRole = req.headers['x-demo-role'] || 'admin';
++      const allowedDemo = ['student', 'faculty', 'lab_incharge', 'admin'];
++      const demoRole = allowedDemo.includes(req.headers['x-demo-role']) ? req.headers['x-demo-role'] : 'student';
+       req.profile = { id: req.user.id, full_name: 'Demo Admin', role: demoRole, preferred_language: 'en' };
+       req.role = demoRole;
+       return next();
+diff --git a/server/middleware/security.js b/server/middleware/security.js
+index 41b65dd..15992e7 100644
+--- a/server/middleware/security.js
++++ b/server/middleware/security.js
+@@ -28,7 +28,7 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
+ export const corsMiddleware = cors({
+   origin: (origin, callback) => {
+     // Allow non-browser requests (e.g. server-to-server, curl, tests) or matching origins
+-    if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV !== 'production') {
++    if (!origin || allowedOrigins.includes(origin) || (process.env.NODE_ENV !== 'production' && !process.env.VERCEL)) {
+       return callback(null, true);
+     }
+     callback(new Error(`CORS origin ${origin} not permitted.`));
+diff --git a/server/routes/admin.js b/server/routes/admin.js
+index ba391a8..3026cf9 100644
+--- a/server/routes/admin.js
++++ b/server/routes/admin.js
+@@ -1,5 +1,4 @@
+ import express from 'express';
+-import { z } from 'zod';
+ import { getSupabase, logAudit } from '../lib/supabase.js';
+ import { requireAuth, requireRole } from '../middleware/auth.js';
+ 
+diff --git a/server/routes/analytics.js b/server/routes/analytics.js
+index f15e588..fdfe62b 100644
+--- a/server/routes/analytics.js
++++ b/server/routes/analytics.js
+@@ -1,91 +1,32 @@
+ import express from 'express';
+ import { getSupabase } from '../lib/supabase.js';
++import { requireAuth, requireRole } from '../middleware/auth.js';
++import { computeUtilization } from '../lib/analyticsCalc.js';
+ 
+ const router = express.Router();
+ 
+-router.get('/utilization', async (req, res) => {
+-  const { from, to } = req.query;
++// Staff-only: aggregate figures computed from real bookings (no PII returned).
++router.get('/utilization', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
+   const supabase = getSupabase();
++  const toMs = req.query.to && !Number.isNaN(Date.parse(req.query.to)) ? Date.parse(req.query.to) : Date.now();
++  const fromMs = req.query.from && !Number.isNaN(Date.parse(req.query.from))
++    ? Date.parse(req.query.from) : toMs - 30 * 86400000;
+ 
+-  let bookings = [];
+-  let resources = [];
+-
+-  if (supabase) {
+-    let bQuery = supabase.from('facility_bookings').select('*, resources(name, kind, lab_id, labs(name))');
+-    if (from) bQuery = bQuery.gte('start_ts', from);
+-    if (to) bQuery = bQuery.lte('end_ts', to);
+-
+-    const [bRes, rRes] = await Promise.all([
+-      bQuery,
+-      supabase.from('resources').select('*, labs(name)')
+-    ]);
+-
+-    bookings = bRes.data || [];
+-    resources = rRes.data || [];
+-  }
+-
+-  // Calculate metrics
+-  const totalBookings = bookings.length;
+-  const noShows = bookings.filter(b => b.status === 'no_show').length;
+-  const noShowRate = totalBookings > 0 ? Math.round((noShows / totalBookings) * 100) : 4;
+-
+-  // Equipment requests frequency
+-  const equipmentCounts = {};
+-  for (const b of bookings) {
+-    const name = b.resources?.name || 'Standard Equipment';
+-    equipmentCounts[name] = (equipmentCounts[name] || 0) + 1;
++  if (!supabase) {
++    return res.json(computeUtilization({ bookings: [], resources: [], fromMs, toMs }));
+   }
+-  const topEquipment = Object.entries(equipmentCounts)
+-    .map(([name, count]) => ({ name, count }))
+-    .sort((a, b) => b.count - a.count)
+-    .slice(0, 5);
+-
+-  // Peak hours (08 to 18)
+-  const hourCounts = {};
+-  for (let h = 8; h <= 18; h++) hourCounts[h] = 0;
+-  for (const b of bookings) {
+-    const h = new Date(b.start_ts).getHours();
+-    if (hourCounts[h] !== undefined) hourCounts[h]++;
+-  }
+-
+-  // Overall utilization percentage estimate (e.g. 74%)
+-  const utilizationRate = Math.min(92, Math.max(48, Math.round(55 + (totalBookings * 3))));
+-
+-  // Heatmap: 5 days x 8 hours
+-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+-  const heatmap = days.map(d => ({
+-    day: d,
+-    slots: [
+-      { hour: '09:00', intensity: Math.floor(Math.random() * 40 + 30) },
+-      { hour: '11:00', intensity: Math.floor(Math.random() * 30 + 60) },
+-      { hour: '14:00', intensity: Math.floor(Math.random() * 20 + 75) },
+-      { hour: '16:00', intensity: Math.floor(Math.random() * 30 + 40) }
+-    ]
+-  }));
+-
+-  // What-if simulation: 1 extra Bambu Lab X1 reduces avg wait time by 42%
+-  const simulation = {
+-    currentAvgWaitHours: 3.4,
+-    projectedAvgWaitHours: 1.8,
+-    reductionPercent: 47,
+-    extraThroughputJobsWeek: 18
+-  };
+ 
+-  res.json({
+-    isSampleData: true,
+-    totalBookings: Math.max(totalBookings, 42),
+-    utilizationRate,
+-    noShowRate,
+-    topEquipment: topEquipment.length > 0 ? topEquipment : [
+-      { name: 'Bambu Lab X1-Carbon Combo', count: 28 },
+-      { name: 'Dell Precision RTX 4090 #1', count: 22 },
+-      { name: 'Voltera V-One PCB Printer', count: 14 },
+-      { name: 'Prusa MK4 CoreXY', count: 11 }
+-    ],
+-    hourDistribution: Object.entries(hourCounts).map(([hour, count]) => ({ hour: `${hour}:00`, count })),
+-    heatmap,
+-    simulation
+-  });
++  const [bRes, rRes] = await Promise.all([
++    supabase.from('facility_bookings')
++      .select('resource_id, start_ts, end_ts, status, created_at, resources:resource_id(name, kind)')
++      .gte('start_ts', new Date(fromMs).toISOString())
++      .lte('start_ts', new Date(toMs).toISOString())
++      .limit(5000),
++    supabase.from('resources').select('id, kind, status')
++  ]);
++
++  if (bRes.error || rRes.error) return res.status(500).json({ error: 'Could not compute analytics' });
++  res.json(computeUtilization({ bookings: bRes.data || [], resources: rRes.data || [], fromMs, toMs }));
+ });
+ 
+ export default router;
+diff --git a/server/routes/bookings.js b/server/routes/bookings.js
+index 12e1d5c..3914e20 100644
+--- a/server/routes/bookings.js
++++ b/server/routes/bookings.js
+@@ -1,8 +1,9 @@
+ import express from 'express';
+ import { z } from 'zod';
+ import { getSupabase, logAudit } from '../lib/supabase.js';
+-import { requireAuth, requireRole } from '../middleware/auth.js';
++import { requireAuth } from '../middleware/auth.js';
+ import { findEarliestSlot } from '../lib/scheduler.js';
++import { IST_OFFSET_MIN, istDayBounds, istNow } from '../lib/time.js';
+ 
+ const router = express.Router();
+ 
+@@ -46,33 +47,29 @@ router.get('/resources', async (req, res) => {
+   res.json(lab ? mockResources.filter(r => r.lab_id === lab) : mockResources);
+ });
+ 
+-// 2. GET /api/availability?resourceId=&date=
+-router.get('/availability', async (req, res) => {
+-  const { resourceId, date } = req.query;
++// 2. GET /api/availability?resourceId=&date=YYYY-MM-DD (IST day) — authenticated; no user data returned
++router.get('/availability', requireAuth, async (req, res) => {
++  const { resourceId } = req.query;
++  const date = /^\d{4}-\d{2}-\d{2}$/.test(req.query.date || '') ? req.query.date : istNow().dateStr;
++  const bounds = istDayBounds(date);
+   const supabase = getSupabase();
+   await autoReleaseNoShows(supabase);
+ 
+-  if (supabase && resourceId) {
+-    const targetDate = date ? new Date(date) : new Date();
+-    const dayStart = new Date(targetDate);
+-    dayStart.setHours(0, 0, 0, 0);
+-    const dayEnd = new Date(targetDate);
+-    dayEnd.setHours(23, 59, 59, 999);
+-
++  if (supabase && resourceId && bounds) {
+     const { data, error } = await supabase
+       .from('facility_bookings')
+       .select('id, resource_id, start_ts, end_ts, status')
+       .eq('resource_id', resourceId)
+       .in('status', ['pending', 'approved'])
+-      .gte('start_ts', dayStart.toISOString())
+-      .lte('end_ts', dayEnd.toISOString());
++      .lt('start_ts', bounds.end)
++      .gt('end_ts', bounds.start);
+ 
+     if (!error) {
+-      return res.json({ resourceId, date: dayStart.toISOString().split('T')[0], bookings: data || [] });
++      return res.json({ resourceId, date, bookings: data || [] });
+     }
+   }
+ 
+-  res.json({ resourceId: resourceId || 'all', bookings: [] });
++  res.json({ resourceId: resourceId || 'all', date, bookings: [] });
+ });
+ 
+ // 3. POST /api/bookings/suggest (Runs Earliest-Available Algorithm)
+@@ -80,11 +77,11 @@ const suggestSchema = z.object({
+   resourceId: z.string().optional(),
+   labId: z.string().optional(),
+   kind: z.string().optional(),
+-  durationMin: z.number().int().positive().default(60),
++  durationMin: z.number().int().positive().max(480).default(60),
+   notBefore: z.string().optional()
+ });
+ 
+-router.post('/bookings/suggest', async (req, res) => {
++router.post('/bookings/suggest', requireAuth, async (req, res) => {
+   const parsed = suggestSchema.safeParse(req.body);
+   if (!parsed.success) {
+     return res.status(400).json({ error: 'Invalid parameters', details: parsed.error.issues });
+@@ -120,8 +117,9 @@ router.post('/bookings/suggest', async (req, res) => {
+   const result = findEarliestSlot({
+     candidates,
+     durationMin,
+-    notBefore: notBefore ? new Date(notBefore) : new Date(),
+-    existingBookings
++    notBefore: notBefore && !Number.isNaN(new Date(notBefore).getTime()) ? new Date(notBefore) : new Date(),
++    existingBookings,
++    tzOffsetMin: IST_OFFSET_MIN
+   });
+ 
+   res.json({ success: true, ...result });
+@@ -146,6 +144,27 @@ router.post('/bookings', requireAuth, async (req, res) => {
+   const userId = req.user.id;
+   const supabase = getSupabase();
+ 
++  const startMs = new Date(start_ts).getTime();
++  const endMs = new Date(end_ts).getTime();
++  if (!(endMs > startMs)) return res.status(400).json({ error: 'end_ts must be after start_ts' });
++  if (endMs - startMs > 8 * 3600 * 1000) return res.status(400).json({ error: 'A booking cannot exceed 8 hours' });
++  if (startMs < Date.now() - 5 * 60 * 1000) return res.status(400).json({ error: 'Cannot book a slot in the past' });
++  if (startMs > Date.now() + 30 * 24 * 3600 * 1000) return res.status(400).json({ error: 'Bookings open only 30 days ahead' });
++
++  if (supabase) {
++    const { data: resource } = await supabase.from('resources').select('id, kind, status, requires_cert').eq('id', resource_id).single();
++    if (!resource) return res.status(404).json({ error: 'Resource not found' });
++    if (resource.status !== 'ok') return res.status(409).json({ error: 'resource_unavailable', message: 'This machine is under maintenance.' });
++    if (resource.requires_cert && req.role === 'student') {
++      const { data: cert } = await supabase.from('certifications').select('id').eq('user_id', userId).eq('resource_kind', resource.kind).maybeSingle();
++      if (!cert) return res.status(403).json({ error: 'certification_required', message: 'Safety certification is required for this machine.' });
++    }
++    // Per-user cap on open bookings (anti-hoarding)
++    const { count } = await supabase.from('facility_bookings').select('id', { count: 'exact', head: true })
++      .eq('user_id', userId).in('status', ['pending', 'approved']).gte('end_ts', new Date().toISOString());
++    if ((count || 0) >= 5) return res.status(429).json({ error: 'booking_limit', message: 'You already have 5 active bookings.' });
++  }
++
+   const newBooking = {
+     id: `req-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+     resource_id,
+@@ -176,7 +195,8 @@ router.post('/bookings', requireAuth, async (req, res) => {
+           candidates: candData || [],
+           durationMin: Math.round((new Date(end_ts).getTime() - new Date(start_ts).getTime()) / (60 * 1000)),
+           notBefore: new Date(end_ts),
+-          existingBookings: allBookings || []
++          existingBookings: allBookings || [],
++          tzOffsetMin: IST_OFFSET_MIN
+         });
+ 
+         return res.status(409).json({
+@@ -204,11 +224,20 @@ router.post('/bookings', requireAuth, async (req, res) => {
+   res.status(201).json({ success: true, booking: newBooking });
+ });
+ 
+-// 5. PATCH /api/bookings/:id (Approve, reject, cancel)
++// 5. PATCH /api/bookings/:id (approve / reject / cancel / complete)
+ const updateStatusSchema = z.object({
+-  status: z.enum(['pending', 'approved', 'rejected', 'cancelled', 'completed', 'no_show'])
++  status: z.enum(['approved', 'rejected', 'cancelled', 'completed', 'no_show'])
+ });
+ 
++// Allowed state transitions
++const TRANSITIONS = {
++  approved: ['pending'],
++  rejected: ['pending'],
++  cancelled: ['pending', 'approved'],
++  completed: ['approved'],
++  no_show: ['approved']
++};
++
+ router.patch('/bookings/:id', requireAuth, async (req, res) => {
+   const { id } = req.params;
+   const parsed = updateStatusSchema.safeParse(req.body);
+@@ -218,101 +247,120 @@ router.patch('/bookings/:id', requireAuth, async (req, res) => {
+ 
+   const { status } = parsed.data;
+   const supabase = getSupabase();
++  if (!supabase) return res.json({ success: true, booking: { id, status } });
+ 
+-  if (supabase) {
+-    // If student cancelling, must be owner
+-    if (status === 'cancelled' && req.role === 'student') {
+-      const { data, error } = await supabase
+-        .from('facility_bookings')
+-        .update({ status: 'cancelled' })
+-        .eq('id', id)
+-        .eq('user_id', req.user.id)
+-        .select()
+-        .single();
+-
+-      if (error || !data) return res.status(403).json({ error: 'Cannot cancel booking or not owner' });
+-      return res.json({ success: true, booking: data });
+-    }
+-
+-    // Approving or rejecting requires faculty, lab_incharge, or admin
+-    if (['approved', 'rejected', 'completed', 'no_show'].includes(status)) {
+-      if (!['faculty', 'lab_incharge', 'admin'].includes(req.role)) {
+-        return res.status(403).json({ error: 'Insufficient permissions to update booking state' });
+-      }
+-
+-      const { data, error } = await supabase
+-        .from('facility_bookings')
+-        .update({ status })
+-        .eq('id', id)
+-        .select('*, profiles:user_id(full_name, email)')
+-        .single();
++  const { data: existing } = await supabase
++    .from('facility_bookings')
++    .select('id, user_id, status, resources:resource_id(lab_id, labs(incharge_id))')
++    .eq('id', id)
++    .single();
++  if (!existing) return res.status(404).json({ error: 'Booking not found' });
+ 
+-      if (error) return res.status(400).json({ error: error.message });
++  const isOwner = existing.user_id === req.user.id;
++  const isStaff = ['faculty', 'lab_incharge', 'admin'].includes(req.role);
+ 
+-      await logAudit({
+-        actor_id: req.user.id,
+-        action: `BOOKING_${status.toUpperCase()}`,
+-        entity: 'facility_bookings',
+-        entity_id: id,
+-        meta: { new_status: status }
+-      });
+-
+-      return res.json({ success: true, booking: data });
++  if (status === 'cancelled') {
++    if (!isOwner && !isStaff) return res.status(403).json({ error: 'Not allowed to cancel this booking' });
++  } else {
++    if (!isStaff) return res.status(403).json({ error: 'Insufficient permissions to update booking state' });
++    const inchargeId = existing.resources?.labs?.incharge_id;
++    if (req.role === 'lab_incharge' && inchargeId && inchargeId !== req.user.id) {
++      return res.status(403).json({ error: 'You are not the in-charge of this lab' });
++    }
++    if (existing.user_id === req.user.id && req.role !== 'admin') {
++      return res.status(403).json({ error: 'You cannot approve your own booking' });
+     }
+   }
+ 
+-  res.json({ success: true, booking: { id, status } });
++  if (!TRANSITIONS[status].includes(existing.status)) {
++    return res.status(409).json({ error: `Cannot change a ${existing.status} booking to ${status}` });
++  }
++
++  // Conditional update guards against double-approval races
++  const { data, error } = await supabase
++    .from('facility_bookings')
++    .update({ status })
++    .eq('id', id)
++    .eq('status', existing.status)
++    .select('*')
++    .single();
++
++  if (error || !data) return res.status(409).json({ error: 'Booking was modified by someone else. Refresh and retry.' });
++
++  await logAudit({
++    actor_id: req.user.id,
++    action: `BOOKING_${status.toUpperCase()}`,
++    entity: 'facility_bookings',
++    entity_id: id,
++    meta: { from: existing.status, to: status }
++  });
++
++  return res.json({ success: true, booking: data });
+ });
+ 
+-// 6. POST /api/bookings/:id/checkin
++// 6. POST /api/bookings/:id/checkin (owner only, approved, near start time)
+ router.post('/bookings/:id/checkin', requireAuth, async (req, res) => {
+   const { id } = req.params;
+   const supabase = getSupabase();
++  if (!supabase) return res.json({ success: true, message: 'Check-in simulated' });
+ 
+-  if (supabase) {
+-    const { data, error } = await supabase
+-      .from('facility_bookings')
+-      .update({ checked_in_at: new Date().toISOString() })
+-      .eq('id', id)
+-      .select()
+-      .single();
++  const { data: b } = await supabase.from('facility_bookings').select('*').eq('id', id).single();
++  if (!b) return res.status(404).json({ error: 'Booking not found' });
++  if (b.user_id !== req.user.id) return res.status(403).json({ error: 'Only the booking owner can check in' });
++  if (b.status !== 'approved') return res.status(409).json({ error: 'Only approved bookings can be checked in' });
+ 
+-    if (error) return res.status(400).json({ error: error.message });
+-    return res.json({ success: true, message: 'Checked in successfully', booking: data });
++  const now = Date.now();
++  if (now < new Date(b.start_ts).getTime() - 10 * 60 * 1000 || now > new Date(b.end_ts).getTime()) {
++    return res.status(409).json({ error: 'Check-in opens 10 minutes before the slot and closes at its end' });
+   }
+ 
+-  res.json({ success: true, message: 'Check-in simulated' });
++  const { data, error } = await supabase
++    .from('facility_bookings')
++    .update({ checked_in_at: new Date().toISOString() })
++    .eq('id', id)
++    .select()
++    .single();
++
++  if (error) return res.status(400).json({ error: 'Check-in failed' });
++  return res.json({ success: true, message: 'Checked in successfully', booking: data });
+ });
+ 
+-// 7. Backward compatible innovation routes for existing components
+-router.get('/innovation/bookings', async (req, res) => {
++// 7. Booking list for the UI. Students see only their own; staff see all.
++router.get('/innovation/bookings', requireAuth, async (req, res) => {
+   const supabase = getSupabase();
+-  if (supabase) {
+-    const { data } = await supabase
+-      .from('facility_bookings')
+-      .select('*, profiles:user_id(full_name, roll_no), resources:resource_id(name, lab_id, labs(name))')
+-      .order('created_at', { ascending: false });
+-
+-    if (data) {
+-      const mapped = data.map(b => ({
+-        id: b.id,
+-        studentName: b.profiles?.full_name || 'Student Innovator',
+-        studentRoll: b.profiles?.roll_no || 'CB.EN.U4AIE23045',
+-        labId: b.resources?.lab_id || 'lab-fablab',
+-        labName: b.resources?.labs?.name || 'Central Innovation Hub',
+-        projectTitle: b.purpose || 'Laboratory Research & Fabrication',
+-        projectType: b.resources?.name || 'Workstation',
+-        requirements: b.resources?.name || 'Standard Equipment',
+-        slotTime: `${new Date(b.start_ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(b.end_ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+-        status: b.status,
+-        submittedAt: new Date(b.created_at).toLocaleDateString(),
+-        facultyAssigned: 'Dr. K. Swaminathan (AMR-FAC-209)'
+-      }));
+-      return res.json({ success: true, bookings: mapped });
+-    }
+-  }
+-
+-  res.json({ success: true, bookings: [] });
++  if (!supabase) return res.json({ success: true, bookings: [] });
++
++  const isStaff = ['faculty', 'lab_incharge', 'admin'].includes(req.role);
++  let q = supabase
++    .from('facility_bookings')
++    .select('*, profiles:user_id(full_name, roll_no), resources:resource_id(name, lab_id, labs(name, incharge_id))')
++    .order('created_at', { ascending: false })
++    .limit(200);
++  if (!isStaff) q = q.eq('user_id', req.user.id);
++
++  const { data, error } = await q;
++  if (error) return res.status(400).json({ error: 'Could not load bookings' });
++
++  const fmt = (d) => new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
++  const bookings = (data || [])
++    .filter(b => req.role !== 'lab_incharge' || !b.resources?.labs?.incharge_id || b.resources.labs.incharge_id === req.user.id)
++    .map(b => ({
++      id: b.id,
++      studentName: b.profiles?.full_name || '',
++      studentRoll: isStaff ? (b.profiles?.roll_no || '') : '',
++      labId: b.resources?.lab_id || '',
++      labName: b.resources?.labs?.name || '',
++      projectTitle: b.purpose || '',
++      projectType: b.resources?.name || '',
++      requirements: b.resources?.name || '',
++      slotTime: `${fmt(b.start_ts)} - ${fmt(b.end_ts)}`,
++      start_ts: b.start_ts,
++      end_ts: b.end_ts,
++      status: b.status,
++      checkedIn: Boolean(b.checked_in_at),
++      submittedAt: new Date(b.created_at).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })
++    }));
++  return res.json({ success: true, bookings });
+ });
+ 
+ export default router;
+diff --git a/server/routes/chat.js b/server/routes/chat.js
+index ec34159..6d05650 100644
+--- a/server/routes/chat.js
++++ b/server/routes/chat.js
+@@ -1,12 +1,14 @@
+ import express from 'express';
+ import { processChatMessage } from '../lib/chatEngine.js';
++import { requireAuth } from '../middleware/auth.js';
+ import { sensitiveLimiter } from '../middleware/security.js';
+ 
+ const router = express.Router();
+ 
+-router.post('/', sensitiveLimiter, async (req, res) => {
++router.post('/', sensitiveLimiter, requireAuth, async (req, res) => {
+   try {
+-    const { message, messages, preferredLanguage = 'en' } = req.body;
++    const { message, messages, preferredLanguage: rawLang = 'en' } = req.body;
++    const preferredLanguage = ['en', 'ta', 'hi', 'ml'].includes(rawLang) ? rawLang : 'en';
+     // Support either single message string or array of messages from previous UI
+     let queryText = message;
+     if (!queryText && Array.isArray(messages) && messages.length > 0) {
+@@ -14,8 +16,8 @@ router.post('/', sensitiveLimiter, async (req, res) => {
+       queryText = lastUserMsg ? (lastUserMsg.text || lastUserMsg.content) : '';
+     }
+ 
+-    if (!queryText || typeof queryText !== 'string') {
+-      return res.status(400).json({ error: 'Message content is required' });
++    if (!queryText || typeof queryText !== 'string' || queryText.length > 500) {
++      return res.status(400).json({ error: 'A message (max 500 characters) is required' });
+     }
+ 
+     const result = await processChatMessage({
+@@ -30,8 +32,7 @@ router.post('/', sensitiveLimiter, async (req, res) => {
+   } catch (err) {
+     console.error('Chat processing error:', err);
+     res.status(500).json({
+-      error: 'Failed to process chat message',
+-      message: err.message
++      error: 'Failed to process chat message'
+     });
+   }
+ });
+diff --git a/server/routes/inventory.js b/server/routes/inventory.js
+index 19ce651..557ab52 100644
+--- a/server/routes/inventory.js
++++ b/server/routes/inventory.js
+@@ -54,8 +54,22 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async
+   }
+ 
+   try {
+-    const formattedRows = items.map(item => ({
+-      id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
++    // Only the lab's own in-charge (or admin) may import for that lab
++    if (req.role === 'lab_incharge') {
++      const { data: lab } = await supabase.from('labs').select('incharge_id').eq('id', lab_id).single();
++      if (lab?.incharge_id && lab.incharge_id !== req.user.id) {
++        return res.status(403).json({ error: 'You are not the in-charge of this lab' });
++      }
++    }
++
++    const keyOf = (item) => (item.part_no || item.name).toLowerCase().replace(/\s+/g, ' ').trim();
++    // De-duplicate rows inside the uploaded file (last wins)
++    const byKey = new Map();
++    for (const item of items) byKey.set(keyOf(item), item);
++
++    const formattedRows = [...byKey.entries()].map(([key, item]) => ({
++      id: `inv-${lab_id}-${key.replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
++      item_key: key,
+       lab_id,
+       name: item.name,
+       part_no: item.part_no || '',
+@@ -69,7 +83,7 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async
+     // Upsert items into inventory_items
+     const { error: upsertErr } = await supabase
+       .from('inventory_items')
+-      .upsert(formattedRows);
++      .upsert(formattedRows, { onConflict: 'lab_id,item_key' });
+ 
+     if (upsertErr) {
+       return res.status(400).json({ error: upsertErr.message });
+@@ -95,17 +109,17 @@ router.post('/import', requireAuth, requireRole('lab_incharge', 'admin'), async
+ 
+     res.json({
+       success: true,
+-      count: items.length,
+-      message: `Successfully imported ${items.length} inventory records.`
++      count: formattedRows.length,
++      message: `Successfully imported ${formattedRows.length} inventory records.`
+     });
+   } catch (err) {
+     console.error('Inventory import failed:', err.message);
+-    res.status(500).json({ error: 'Failed to process inventory import', message: err.message });
++    res.status(500).json({ error: 'Failed to process inventory import' });
+   }
+ });
+ 
+ // 3. Purchase / Equipment Requests (§7.2)
+-router.get('/purchase-requests', requireAuth, async (req, res) => {
++router.get('/purchase-requests', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
+   const supabase = getSupabase();
+   if (supabase) {
+     const { data } = await supabase
+diff --git a/server/routes/jobs.js b/server/routes/jobs.js
+index 0450679..8570e3d 100644
+--- a/server/routes/jobs.js
++++ b/server/routes/jobs.js
+@@ -85,7 +85,15 @@ router.post('/', requireAuth, async (req, res) => {
+ // 3. PATCH /api/jobs/:id (Staff update status & duration)
+ router.patch('/:id', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
+   const { id } = req.params;
+-  const { status, est_minutes, lab_id } = req.body;
++  const patchParsed = z.object({
++    status: z.enum(['submitted', 'queued', 'approved', 'in_progress', 'done', 'rejected']).optional(),
++    est_minutes: z.number().int().positive().max(60 * 24).optional(),
++    lab_id: z.string().min(1).max(60).optional()
++  }).safeParse(req.body);
++  if (!patchParsed.success) {
++    return res.status(400).json({ error: 'Validation failed', details: patchParsed.error.issues });
++  }
++  const { status, est_minutes, lab_id } = patchParsed.data;
+   const supabase = getSupabase();
+ 
+   const updates = { updated_at: new Date().toISOString() };
+@@ -118,9 +126,9 @@ router.patch('/:id', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'
+ });
+ 
+ // 4. POST /api/jobs/verify-content (Magic bytes server verification)
+-router.post('/verify-content', async (req, res) => {
++router.post('/verify-content', requireAuth, async (req, res) => {
+   const { kind, base64Header } = req.body;
+-  if (!base64Header) {
++  if (typeof base64Header !== 'string' || base64Header.length > 70000) {
+     return res.status(400).json({ error: 'base64Header is required for content inspection' });
+   }
+ 
+diff --git a/server/server.js b/server/server.js
+index 81fdfd7..9e57b08 100644
+--- a/server/server.js
++++ b/server/server.js
+@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
+ import { getSupabase } from './lib/supabase.js';
+ import { computeRoomStatus } from './lib/roomStatus.js';
+ import { requireAuth, requireRole } from './middleware/auth.js';
++import { istNow } from './lib/time.js';
+ import { corsMiddleware, helmetMiddleware, standardLimiter } from './middleware/security.js';
+ 
+ // Route modules
+@@ -18,6 +19,8 @@ import adminRouter from './routes/admin.js';
+ dotenv.config();
+ 
+ const app = express();
++// Behind Vercel/any reverse proxy: needed for correct client IP in rate limiting.
++app.set('trust proxy', 1);
+ const PORT = process.env.PORT || 5000;
+ 
+ // Security & Parsing Middlewares
+@@ -99,12 +102,9 @@ router.put('/pages/:slug', requireAuth, requireRole('admin'), async (req, res) =
+ // 4. Classrooms with Live Occupancy Calculation (Reads Supabase)
+ router.get('/classrooms', async (req, res) => {
+   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+-  const now = new Date();
+-  const day = req.query.day || days[now.getDay()] || 'Monday';
+-  
+-  const hours = String(now.getHours()).padStart(2, '0');
+-  const minutes = String(now.getMinutes()).padStart(2, '0');
+-  const timeStr = req.query.time || `${hours}:${minutes}`;
++  const ist = istNow();
++  const day = days.includes(req.query.day) ? req.query.day : ist.day;
++  const timeStr = /^\d{2}:\d{2}$/.test(req.query.time || '') ? req.query.time : ist.time;
+ 
+   const supabase = getSupabase();
+   let classroomsList = [];
+@@ -118,7 +118,7 @@ router.get('/classrooms', async (req, res) => {
+         supabase.from('classrooms').select('*').order('id'),
+         supabase.from('timetables').select('*'),
+         supabase.from('occupancy_reports').select('*').eq('status', 'active'),
+-        supabase.from('room_bookings').select('*').eq('booking_date', now.toISOString().split('T')[0])
++        supabase.from('room_bookings').select('*').eq('booking_date', ist.dateStr)
+       ]);
+ 
+       classroomsList = roomsRes.data || [];
+@@ -157,7 +157,7 @@ router.get('/timetables', async (req, res) => {
+ });
+ 
+ // 6. Crowdsourced Occupancy Reports (Reads and writes Supabase directly)
+-router.get('/reports', async (req, res) => {
++router.get('/reports', requireAuth, requireRole('faculty', 'lab_incharge', 'admin'), async (req, res) => {
+   const supabase = getSupabase();
+   if (supabase) {
+     const { data } = await supabase.from('occupancy_reports').select('*').order('created_at', { ascending: false });
+diff --git a/server/tests/analytics.test.js b/server/tests/analytics.test.js
+new file mode 100644
+index 0000000..1b51c0f
+--- /dev/null
++++ b/server/tests/analytics.test.js
+@@ -0,0 +1,49 @@
++import { describe, it, expect } from 'vitest';
++import { computeUtilization } from '../lib/analyticsCalc.js';
++import { istNow, istDayBounds } from '../lib/time.js';
++
++const resources = [{ id: 'a', kind: 'printer_3d', status: 'ok' }, { id: 'b', kind: 'printer_3d', status: 'ok' }];
++const from = Date.parse('2026-10-05T00:00:00Z');
++const to = Date.parse('2026-10-12T00:00:00Z');
++
++describe('computeUtilization', () => {
++  it('returns zeros (no fabricated numbers) when there are no bookings', () => {
++    const r = computeUtilization({ bookings: [], resources, fromMs: from, toMs: to });
++    expect(r.totalBookings).toBe(0);
++    expect(r.utilizationRate).toBe(0);
++    expect(r.isSampleData).toBe(true);
++  });
++
++  it('computes utilization from booked hours / capacity and is deterministic', () => {
++    const bookings = [{
++      resource_id: 'a', status: 'approved', created_at: '2026-10-05T01:00:00Z',
++      start_ts: '2026-10-06T04:00:00Z', end_ts: '2026-10-06T07:00:00Z', resources: { name: 'P1', kind: 'printer_3d' }
++    }];
++    const r1 = computeUtilization({ bookings, resources, fromMs: from, toMs: to });
++    const r2 = computeUtilization({ bookings, resources, fromMs: from, toMs: to });
++    expect(r1).toEqual(r2);
++    // 3h booked / (2 machines * 9h * 5 weekdays = 90h) = 3%
++    expect(r1.utilizationRate).toBe(3);
++    expect(r1.topEquipment[0]).toEqual({ name: 'P1', count: 1 });
++  });
++
++  it('counts no-shows', () => {
++    const mk = (status) => ({ resource_id: 'a', status, created_at: '2026-10-05T01:00:00Z', start_ts: '2026-10-06T04:00:00Z', end_ts: '2026-10-06T05:00:00Z' });
++    const r = computeUtilization({ bookings: [mk('approved'), mk('no_show')], resources, fromMs: from, toMs: to });
++    expect(r.noShowRate).toBe(50);
++  });
++});
++
++describe('IST helpers', () => {
++  it('maps 20:00 UTC Sunday to Monday 01:30 IST', () => {
++    const r = istNow(new Date('2026-10-11T20:00:00Z'));
++    expect(r.day).toBe('Monday');
++    expect(r.time).toBe('01:30');
++    expect(r.dateStr).toBe('2026-10-12');
++  });
++  it('gives a 24h IST day window', () => {
++    const b = istDayBounds('2026-10-12');
++    expect(b.start).toBe('2026-10-11T18:30:00.000Z');
++    expect(b.end).toBe('2026-10-12T18:30:00.000Z');
++  });
++});
+diff --git a/server/tests/scheduler.test.js b/server/tests/scheduler.test.js
+index caee0e8..ecc1e2c 100644
+--- a/server/tests/scheduler.test.js
++++ b/server/tests/scheduler.test.js
+@@ -170,3 +170,27 @@ describe('Earliest Available Resource Scheduler', () => {
+     expect(result.alternatives.length).toBeLessThanOrEqual(3);
+   });
+ });
++
++describe('IST working hours (tzOffsetMin=330)', () => {
++  it('applies 08:30-17:30 in IST, not UTC', () => {
++    const r = findEarliestSlot({
++      candidates: [{ id: 'r1', name: 'P', kind: 'printer_3d', status: 'ok' }],
++      durationMin: 60,
++      notBefore: new Date('2026-10-12T00:00:00Z'), // 05:30 IST Monday
++      existingBookings: [],
++      tzOffsetMin: 330
++    });
++    expect(r.best.start).toBe('2026-10-12T03:00:00.000Z'); // 08:30 IST
++  });
++
++  it('never proposes a slot ending after 17:30 IST', () => {
++    const r = findEarliestSlot({
++      candidates: [{ id: 'r1', name: 'P', kind: 'printer_3d', status: 'ok' }],
++      durationMin: 120,
++      notBefore: new Date('2026-10-12T10:30:00Z'), // 16:00 IST
++      existingBookings: [],
++      tzOffsetMin: 330
++    });
++    expect(r.best.start).toBe('2026-10-13T03:00:00.000Z'); // next day 08:30 IST
++  });
++});
+diff --git a/src/components/UtilizationDashboard.jsx b/src/components/UtilizationDashboard.jsx
+index 721b825..cf7892d 100644
+--- a/src/components/UtilizationDashboard.jsx
++++ b/src/components/UtilizationDashboard.jsx
+@@ -27,6 +27,8 @@ export default function UtilizationDashboard() {
+   }
+ 
+   const d = data || {};
++  const peak = [...(d.hourDistribution || [])].sort((a, b) => b.count - a.count)[0];
++  const peakLabel = peak && peak.count > 0 ? peak.hour : '—';
+ 
+   return (
+     <div className="space-y-6">
+@@ -41,9 +43,9 @@ export default function UtilizationDashboard() {
+             Realtime capacity tracking derived from PostgreSQL facility bookings, idle gap intervals, and check-in verifications.
+           </p>
+         </div>
+-        <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+-          <Activity className="w-3.5 h-3.5 text-amber-600" />
+-          Sample Data Mode
++        <span className={`${d.isSampleData ? 'bg-amber-100 text-amber-900 border-amber-300' : 'bg-emerald-100 text-emerald-900 border-emerald-300'} border text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider flex items-center gap-1.5 shrink-0`}>
++          <Activity className="w-3.5 h-3.5" />
++          {d.isSampleData ? 'No bookings yet' : 'Live data · last 30 days'}
+         </span>
+       </div>
+ 
+@@ -51,28 +53,25 @@ export default function UtilizationDashboard() {
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+         <div className="card-amrita p-5 space-y-1">
+           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Average Utilization</span>
+-          <div className="text-3xl font-extrabold text-amrita-maroon">{d.utilizationRate || 74}%</div>
+-          <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
+-            <TrendingUp className="w-3.5 h-3.5" /> +8.4% compared to last semester
+-          </span>
++          <div className="text-3xl font-extrabold text-amrita-maroon">{d.utilizationRate ?? 0}%</div>
+         </div>
+ 
+         <div className="card-amrita p-5 space-y-1">
+-          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Booked Hours</span>
+-          <div className="text-3xl font-extrabold text-gray-900">{d.totalBookings || 42} hrs</div>
+-          <span className="text-xs text-gray-500 font-medium">Across 5 innovation labs</span>
++          <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Bookings</span>
++          <div className="text-3xl font-extrabold text-gray-900">{d.totalBookings ?? 0}</div>
++          <span className="text-xs text-gray-500 font-medium">In the last 30 days</span>
+         </div>
+ 
+         <div className="card-amrita p-5 space-y-1">
+           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">No-Show / Auto-Release</span>
+-          <div className="text-3xl font-extrabold text-rose-600">{d.noShowRate || 4}%</div>
++          <div className="text-3xl font-extrabold text-rose-600">{d.noShowRate ?? 0}%</div>
+           <span className="text-xs text-gray-500 font-medium">Lazy 15-min gap release</span>
+         </div>
+ 
+         <div className="card-amrita p-5 space-y-1">
+           <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Peak Rush Window</span>
+-          <div className="text-3xl font-extrabold text-amber-600">02:00 - 04:30 PM</div>
+-          <span className="text-xs text-gray-500 font-medium">Post-lecture innovation surge</span>
++          <div className="text-3xl font-extrabold text-amber-600">{peakLabel}</div>
++          <span className="text-xs text-gray-500 font-medium">Busiest start hour</span>
+         </div>
+       </div>
+ 
+diff --git a/supabase/migrations/004_security_fixes.sql b/supabase/migrations/004_security_fixes.sql
+new file mode 100644
+index 0000000..fe7f790
+--- /dev/null
++++ b/supabase/migrations/004_security_fixes.sql
+@@ -0,0 +1,104 @@
++-- =========================================================================
++-- Amrita Yukti — 004_security_fixes.sql
++-- Closes privilege escalation, student self-approval and PII exposure.
++-- Run AFTER 001-003. Idempotent.
++-- =========================================================================
++
++-- 1. Signup trigger: NEVER trust client metadata for role; enforce college domain.
++CREATE OR REPLACE FUNCTION public.handle_new_user()
++RETURNS trigger AS $$
++BEGIN
++  IF lower(new.email) !~ '@(cb\.amrita\.edu|cb\.students\.amrita\.edu|amrita\.edu)$' THEN
++    RAISE EXCEPTION 'Sign-up restricted to Amrita college email addresses';
++  END IF;
++
++  INSERT INTO public.profiles (id, full_name, role, roll_no, department, batch, preferred_language)
++  VALUES (
++    new.id,
++    COALESCE(NULLIF(left(new.raw_user_meta_data->>'full_name', 100), ''), split_part(new.email, '@', 1)),
++    'student',                                              -- always student
++    COALESCE(left(new.raw_user_meta_data->>'roll_no', 30), ''),
++    COALESCE(left(new.raw_user_meta_data->>'department', 60), 'CSE'),
++    COALESCE(left(new.raw_user_meta_data->>'batch', 20), '2023-2027'),
++    CASE WHEN new.raw_user_meta_data->>'preferred_language' IN ('en','ta','hi','ml')
++         THEN new.raw_user_meta_data->>'preferred_language' ELSE 'en' END
++  )
++  ON CONFLICT (id) DO NOTHING;
++  RETURN new;
++END;
++$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
++
++-- 2. Block role / identity changes by anyone except admins (service role has auth.uid() NULL).
++CREATE OR REPLACE FUNCTION public.guard_profile_update()
++RETURNS trigger AS $$
++BEGIN
++  IF auth.uid() IS NOT NULL AND NOT public.is_admin() THEN
++    IF new.role IS DISTINCT FROM old.role OR new.id IS DISTINCT FROM old.id THEN
++      RAISE EXCEPTION 'Only administrators can change roles';
++    END IF;
++  END IF;
++  new.updated_at = NOW();
++  RETURN new;
++END;
++$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
++
++DROP TRIGGER IF EXISTS guard_profile_update ON public.profiles;
++CREATE TRIGGER guard_profile_update BEFORE UPDATE ON public.profiles
++  FOR EACH ROW EXECUTE PROCEDURE public.guard_profile_update();
++
++-- 3. Profiles: only own row (or staff) is readable.
++DROP POLICY IF EXISTS "profiles_select" ON public.profiles;
++CREATE POLICY "profiles_select" ON public.profiles
++  FOR SELECT TO authenticated
++  USING (id = auth.uid() OR public.is_staff());
++
++-- 4. Jobs & facility bookings: all writes go through the Express API (service role).
++--    Remove direct client write access so students cannot self-approve.
++DROP POLICY IF EXISTS "jobs_insert" ON public.jobs;
++DROP POLICY IF EXISTS "jobs_update" ON public.jobs;
++DROP POLICY IF EXISTS "facility_bookings_insert" ON public.facility_bookings;
++DROP POLICY IF EXISTS "facility_bookings_update" ON public.facility_bookings;
++
++-- 5. Catalogue tables: admin writes only; inventory by that lab's in-charge or admin.
++DROP POLICY IF EXISTS "labs_write" ON public.labs;
++CREATE POLICY "labs_write" ON public.labs FOR ALL TO authenticated
++  USING (public.is_admin()) WITH CHECK (public.is_admin());
++
++DROP POLICY IF EXISTS "resources_write" ON public.resources;
++CREATE POLICY "resources_write" ON public.resources FOR ALL TO authenticated
++  USING (public.is_admin()) WITH CHECK (public.is_admin());
++
++DROP POLICY IF EXISTS "inventory_write" ON public.inventory_items;
++CREATE POLICY "inventory_write" ON public.inventory_items FOR ALL TO authenticated
++  USING (public.is_admin() OR EXISTS (SELECT 1 FROM public.labs l WHERE l.id = lab_id AND l.incharge_id = auth.uid()))
++  WITH CHECK (public.is_admin() OR EXISTS (SELECT 1 FROM public.labs l WHERE l.id = lab_id AND l.incharge_id = auth.uid()));
++
++DROP POLICY IF EXISTS "certifications_write" ON public.certifications;
++CREATE POLICY "certifications_write" ON public.certifications FOR ALL TO authenticated
++  USING (public.is_admin()) WITH CHECK (public.is_admin());
++
++-- 6. Audit log: only the server (service role) may insert; forged entries impossible from browser.
++DROP POLICY IF EXISTS "audit_log_insert" ON public.audit_log;
++
++-- 7. Purchase requests must belong to the caller.
++DROP POLICY IF EXISTS "purchase_requests_insert" ON public.purchase_requests;
++CREATE POLICY "purchase_requests_insert" ON public.purchase_requests
++  FOR INSERT TO authenticated
++  WITH CHECK (public.is_staff() AND requested_by = auth.uid());
++
++-- 8. Inventory idempotent re-import: stable natural key.
++ALTER TABLE public.inventory_items ADD COLUMN IF NOT EXISTS item_key TEXT;
++UPDATE public.inventory_items
++   SET item_key = lower(regexp_replace(COALESCE(NULLIF(part_no, ''), name), '\s+', ' ', 'g'))
++ WHERE item_key IS NULL;
++-- remove accidental duplicates (keep newest)
++DELETE FROM public.inventory_items a USING public.inventory_items b
++ WHERE a.lab_id = b.lab_id AND a.item_key = b.item_key
++   AND (a.updated_at, a.id) < (b.updated_at, b.id);
++ALTER TABLE public.inventory_items ALTER COLUMN item_key SET NOT NULL;
++CREATE UNIQUE INDEX IF NOT EXISTS inventory_items_lab_key_uniq ON public.inventory_items (lab_id, item_key);
++
++-- 9. Helpful indexes for traffic.
++CREATE INDEX IF NOT EXISTS idx_fb_resource_time ON public.facility_bookings (resource_id, start_ts);
++CREATE INDEX IF NOT EXISTS idx_fb_user ON public.facility_bookings (user_id);
++CREATE INDEX IF NOT EXISTS idx_jobs_user ON public.jobs (user_id);
+diff --git a/supabase_schema.sql b/supabase_schema.sql
+deleted file mode 100644
+index 350488c..0000000
+--- a/supabase_schema.sql
++++ /dev/null
+@@ -1,374 +0,0 @@
+--- =========================================================================
+--- Amrita Yukti — Unified Supabase Database Schema (Production Ready)
+--- Amrita Vishwa Vidyapeetham — Coimbatore Campus
+--- =========================================================================
+--- Target: Supabase Cloud SQL Editor (PostgreSQL with RLS & Realtime)
+--- Safe migration: Uses CREATE TABLE IF NOT EXISTS without destructive DROPs
+--- =========================================================================
+-
+--- 1. Enable required extensions
+-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-CREATE EXTENSION IF NOT EXISTS "btree_gist";
+-
+--- 2. PROFILES TABLE (linked to auth.users)
+-CREATE TABLE IF NOT EXISTS public.profiles (
+-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+-    role TEXT NOT NULL DEFAULT 'student' CHECK (role IN ('student', 'faculty', 'lab_incharge', 'admin')),
+-    full_name TEXT NOT NULL DEFAULT '',
+-    roll_no TEXT DEFAULT '',
+-    emp_id TEXT DEFAULT '',
+-    department TEXT DEFAULT 'CSE',
+-    batch TEXT DEFAULT '2023-2027',
+-    preferred_language TEXT DEFAULT 'en' CHECK (preferred_language IN ('en', 'ta', 'hi', 'ml')),
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 3. CLASSROOMS TABLE
+-CREATE TABLE IF NOT EXISTS public.classrooms (
+-    id TEXT PRIMARY KEY,
+-    room_number TEXT NOT NULL,
+-    block TEXT NOT NULL,
+-    floor INTEGER NOT NULL DEFAULT 1,
+-    capacity INTEGER NOT NULL DEFAULT 60,
+-    room_type TEXT NOT NULL DEFAULT 'lecture_hall',
+-    amenities JSONB DEFAULT '["ac", "projector", "power_sockets"]'::jsonb,
+-    is_flagged BOOLEAN DEFAULT FALSE,
+-    flag_reason TEXT DEFAULT NULL,
+-    flag_count INTEGER DEFAULT 0,
+-    flagged_batch TEXT DEFAULT NULL,
+-    flagged_department TEXT DEFAULT NULL,
+-    flagged_purpose TEXT DEFAULT NULL,
+-    last_flagged_at TIMESTAMPTZ DEFAULT NULL,
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 4. MASTER TIMETABLES TABLE
+-CREATE TABLE IF NOT EXISTS public.timetables (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
+-    day_of_week TEXT NOT NULL,
+-    start_time TIME NOT NULL,
+-    end_time TIME NOT NULL,
+-    slot_number INTEGER NOT NULL,
+-    subject_name TEXT NOT NULL,
+-    subject_code TEXT DEFAULT '',
+-    department TEXT NOT NULL,
+-    batch TEXT NOT NULL,
+-    is_lab BOOLEAN DEFAULT FALSE,
+-    faculty_name TEXT DEFAULT 'Faculty In-Charge',
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 5. OCCUPANCY REPORTS TABLE
+-CREATE TABLE IF NOT EXISTS public.occupancy_reports (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
+-    report_type TEXT NOT NULL DEFAULT 'unscheduled_occupancy',
+-    reported_batch TEXT NOT NULL,
+-    reported_department TEXT NOT NULL,
+-    is_lab_class BOOLEAN DEFAULT FALSE,
+-    purpose TEXT NOT NULL,
+-    occupancy_level TEXT DEFAULT 'Full',
+-    reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+-    reporter_name TEXT DEFAULT 'Anonymous Student',
+-    reporter_roll_no TEXT DEFAULT '',
+-    reporter_role TEXT DEFAULT 'student',
+-    status TEXT DEFAULT 'active' CHECK (status IN ('active', 'verified_by_admin', 'dismissed', 'resolved')),
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 6. PORTAL CONFIGURATION
+-CREATE TABLE IF NOT EXISTS public.portal_settings (
+-    id TEXT PRIMARY KEY DEFAULT 'campus_config',
+-    campus_name TEXT DEFAULT 'Amrita Vishwa Vidyapeetham — Coimbatore',
+-    active_semester TEXT DEFAULT 'Even Semester 2026',
+-    flag_threshold INTEGER DEFAULT 2,
+-    banner_message TEXT DEFAULT '📢 Real-time Classroom & Lab Occupancy live. Submit reports for unannounced room takeovers.',
+-    banner_active BOOLEAN DEFAULT TRUE,
+-    allow_student_reporting BOOLEAN DEFAULT TRUE,
+-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+-CREATE TABLE IF NOT EXISTS public.portal_pages (
+-    slug TEXT PRIMARY KEY,
+-    title TEXT NOT NULL,
+-    subtitle TEXT NOT NULL,
+-    badge TEXT NOT NULL,
+-    icon_name TEXT DEFAULT 'Layers',
+-    is_enabled BOOLEAN DEFAULT TRUE,
+-    display_order INTEGER DEFAULT 1,
+-    custom_content JSONB DEFAULT '{}'::jsonb,
+-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 7. LABS & RESOURCES
+-CREATE TABLE IF NOT EXISTS public.labs (
+-    id TEXT PRIMARY KEY,
+-    name TEXT NOT NULL,
+-    block TEXT NOT NULL,
+-    floor INTEGER NOT NULL DEFAULT 1,
+-    category TEXT NOT NULL,
+-    incharge_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+-    capacity INTEGER NOT NULL DEFAULT 30,
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+-CREATE TABLE IF NOT EXISTS public.resources (
+-    id TEXT PRIMARY KEY,
+-    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+-    name TEXT NOT NULL,
+-    kind TEXT NOT NULL CHECK (kind IN ('printer_3d', 'pcb_mill', 'laser', 'lathe', 'welding', 'workstation', 'bench')),
+-    status TEXT NOT NULL DEFAULT 'ok' CHECK (status IN ('ok', 'maintenance')),
+-    requires_cert BOOLEAN DEFAULT FALSE,
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+-CREATE TABLE IF NOT EXISTS public.certifications (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-    resource_kind TEXT NOT NULL,
+-    passed_at TIMESTAMPTZ DEFAULT NOW(),
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    UNIQUE (user_id, resource_kind)
+-);
+-
+--- 8. INVENTORY ITEMS & IMPORTS
+-CREATE TABLE IF NOT EXISTS public.inventory_items (
+-    id TEXT PRIMARY KEY,
+-    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+-    name TEXT NOT NULL,
+-    part_no TEXT DEFAULT '',
+-    category TEXT DEFAULT 'General',
+-    quantity INTEGER NOT NULL CHECK (quantity >= 0),
+-    location TEXT DEFAULT '',
+-    updated_at TIMESTAMPTZ DEFAULT NOW(),
+-    updated_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+-);
+-
+-CREATE TABLE IF NOT EXISTS public.inventory_imports (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    lab_id TEXT REFERENCES public.labs(id) ON DELETE SET NULL,
+-    uploaded_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+-    filename TEXT NOT NULL,
+-    row_count INTEGER NOT NULL DEFAULT 0,
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 9. JOBS (3D print, PCB, Laser, etc.)
+-CREATE TABLE IF NOT EXISTS public.jobs (
+-    id TEXT PRIMARY KEY,
+-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-    kind TEXT NOT NULL CHECK (kind IN ('print_3d', 'pcb', 'laser', 'other')),
+-    title TEXT NOT NULL,
+-    file_path TEXT,
+-    file_name TEXT,
+-    file_ext TEXT,
+-    detected_by TEXT,
+-    est_minutes INTEGER DEFAULT 60,
+-    est_material_g NUMERIC DEFAULT 0,
+-    params JSONB DEFAULT '{}'::jsonb,
+-    status TEXT NOT NULL DEFAULT 'submitted' CHECK (status IN ('submitted', 'queued', 'approved', 'in_progress', 'done', 'rejected')),
+-    lab_id TEXT REFERENCES public.labs(id) ON DELETE SET NULL,
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    updated_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 10. FACILITY BOOKINGS (With btree_gist exclusion constraint)
+-CREATE TABLE IF NOT EXISTS public.facility_bookings (
+-    id TEXT PRIMARY KEY,
+-    resource_id TEXT NOT NULL REFERENCES public.resources(id) ON DELETE CASCADE,
+-    user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-    job_id TEXT REFERENCES public.jobs(id) ON DELETE SET NULL,
+-    start_ts TIMESTAMPTZ NOT NULL,
+-    end_ts TIMESTAMPTZ NOT NULL,
+-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled', 'no_show', 'completed')),
+-    checked_in_at TIMESTAMPTZ DEFAULT NULL,
+-    purpose TEXT DEFAULT '',
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    CONSTRAINT facility_bookings_no_overlap EXCLUDE USING gist (
+-        resource_id WITH =,
+-        tstzrange(start_ts, end_ts) WITH &&
+-    ) WHERE (status IN ('pending', 'approved'))
+-);
+-
+--- 11. ROOM BOOKINGS
+-CREATE TABLE IF NOT EXISTS public.room_bookings (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    room_id TEXT NOT NULL REFERENCES public.classrooms(id) ON DELETE CASCADE,
+-    faculty_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-    booking_date DATE NOT NULL,
+-    slot_number INTEGER NOT NULL,
+-    purpose TEXT NOT NULL,
+-    status TEXT NOT NULL DEFAULT 'approved' CHECK (status IN ('approved', 'cancelled', 'blocked')),
+-    created_at TIMESTAMPTZ DEFAULT NOW(),
+-    UNIQUE (room_id, booking_date, slot_number)
+-);
+-
+--- 12. PURCHASE / EQUIPMENT REQUESTS
+-CREATE TABLE IF NOT EXISTS public.purchase_requests (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    lab_id TEXT NOT NULL REFERENCES public.labs(id) ON DELETE CASCADE,
+-    item TEXT NOT NULL,
+-    qty INTEGER NOT NULL CHECK (qty > 0),
+-    reason TEXT NOT NULL,
+-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected', 'ordered')),
+-    requested_by UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 13. AUDIT LOG
+-CREATE TABLE IF NOT EXISTS public.audit_log (
+-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-    actor_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+-    action TEXT NOT NULL,
+-    entity TEXT NOT NULL,
+-    entity_id TEXT,
+-    meta JSONB DEFAULT '{}'::jsonb,
+-    created_at TIMESTAMPTZ DEFAULT NOW()
+-);
+-
+--- 14. Trigger on auth.users for profile creation
+-CREATE OR REPLACE FUNCTION public.handle_new_user()
+-RETURNS trigger AS $$
+-BEGIN
+-  INSERT INTO public.profiles (id, full_name, role, preferred_language)
+-  VALUES (
+-    new.id,
+-    COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+-    COALESCE(new.raw_user_meta_data->>'role', 'student'),
+-    COALESCE(new.raw_user_meta_data->>'preferred_language', 'en')
+-  )
+-  ON CONFLICT (id) DO NOTHING;
+-  RETURN new;
+-END;
+-$$ LANGUAGE plpgsql SECURITY DEFINER;
+-
+-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+-CREATE TRIGGER on_auth_user_created
+-  AFTER INSERT ON auth.users
+-  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+-
+--- 15. Helper functions for RLS
+-CREATE OR REPLACE FUNCTION public.is_admin()
+-RETURNS BOOLEAN AS $$
+-  SELECT EXISTS (
+-    SELECT 1 FROM public.profiles
+-    WHERE id = auth.uid() AND role = 'admin'
+-  );
+-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+-
+-CREATE OR REPLACE FUNCTION public.is_staff()
+-RETURNS BOOLEAN AS $$
+-  SELECT EXISTS (
+-    SELECT 1 FROM public.profiles
+-    WHERE id = auth.uid() AND role IN ('faculty', 'lab_incharge', 'admin')
+-  );
+-$$ LANGUAGE sql SECURITY DEFINER STABLE;
+-
+--- 16. Enable RLS
+-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.classrooms ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.timetables ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.occupancy_reports ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.portal_settings ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.portal_pages ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.labs ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.certifications ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.inventory_imports ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.jobs ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.facility_bookings ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.room_bookings ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.purchase_requests ENABLE ROW LEVEL SECURITY;
+-ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+-
+--- 17. RLS Policies
+-DROP POLICY IF EXISTS "profiles_select" ON public.profiles;
+-CREATE POLICY "profiles_select" ON public.profiles FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
+-CREATE POLICY "profiles_update_own" ON public.profiles FOR UPDATE TO authenticated USING (id = auth.uid() OR public.is_admin()) WITH CHECK (id = auth.uid() OR public.is_admin());
+-DROP POLICY IF EXISTS "profiles_admin_all" ON public.profiles;
+-CREATE POLICY "profiles_admin_all" ON public.profiles FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "classrooms_read" ON public.classrooms;
+-CREATE POLICY "classrooms_read" ON public.classrooms FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "classrooms_admin_write" ON public.classrooms;
+-CREATE POLICY "classrooms_admin_write" ON public.classrooms FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "timetables_read" ON public.timetables;
+-CREATE POLICY "timetables_read" ON public.timetables FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "timetables_admin_write" ON public.timetables;
+-CREATE POLICY "timetables_admin_write" ON public.timetables FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "occupancy_reports_read" ON public.occupancy_reports;
+-CREATE POLICY "occupancy_reports_read" ON public.occupancy_reports FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "occupancy_reports_insert" ON public.occupancy_reports;
+-CREATE POLICY "occupancy_reports_insert" ON public.occupancy_reports FOR INSERT TO authenticated WITH CHECK (reporter_id = auth.uid() OR reporter_id IS NULL);
+-DROP POLICY IF EXISTS "occupancy_reports_admin_mod" ON public.occupancy_reports;
+-CREATE POLICY "occupancy_reports_admin_mod" ON public.occupancy_reports FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "settings_read" ON public.portal_settings;
+-CREATE POLICY "settings_read" ON public.portal_settings FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "settings_admin_write" ON public.portal_settings;
+-CREATE POLICY "settings_admin_write" ON public.portal_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "pages_read" ON public.portal_pages;
+-CREATE POLICY "pages_read" ON public.portal_pages FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "pages_admin_write" ON public.portal_pages;
+-CREATE POLICY "pages_admin_write" ON public.portal_pages FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "labs_read" ON public.labs;
+-CREATE POLICY "labs_read" ON public.labs FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "labs_write" ON public.labs;
+-CREATE POLICY "labs_write" ON public.labs FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+-
+-DROP POLICY IF EXISTS "resources_read" ON public.resources;
+-CREATE POLICY "resources_read" ON public.resources FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "resources_write" ON public.resources;
+-CREATE POLICY "resources_write" ON public.resources FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+-
+-DROP POLICY IF EXISTS "certifications_read" ON public.certifications;
+-CREATE POLICY "certifications_read" ON public.certifications FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+-DROP POLICY IF EXISTS "certifications_write" ON public.certifications;
+-CREATE POLICY "certifications_write" ON public.certifications FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+-
+-DROP POLICY IF EXISTS "inventory_read" ON public.inventory_items;
+-CREATE POLICY "inventory_read" ON public.inventory_items FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "inventory_write" ON public.inventory_items;
+-CREATE POLICY "inventory_write" ON public.inventory_items FOR ALL TO authenticated USING (public.is_staff()) WITH CHECK (public.is_staff());
+-
+-DROP POLICY IF EXISTS "jobs_select" ON public.jobs;
+-CREATE POLICY "jobs_select" ON public.jobs FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+-DROP POLICY IF EXISTS "jobs_insert" ON public.jobs;
+-CREATE POLICY "jobs_insert" ON public.jobs FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+-DROP POLICY IF EXISTS "jobs_update" ON public.jobs;
+-CREATE POLICY "jobs_update" ON public.jobs FOR UPDATE TO authenticated USING (user_id = auth.uid() OR public.is_staff()) WITH CHECK (user_id = auth.uid() OR public.is_staff());
+-
+-DROP POLICY IF EXISTS "facility_bookings_select" ON public.facility_bookings;
+-CREATE POLICY "facility_bookings_select" ON public.facility_bookings FOR SELECT TO authenticated USING (user_id = auth.uid() OR public.is_staff());
+-DROP POLICY IF EXISTS "facility_bookings_insert" ON public.facility_bookings;
+-CREATE POLICY "facility_bookings_insert" ON public.facility_bookings FOR INSERT TO authenticated WITH CHECK (user_id = auth.uid());
+-DROP POLICY IF EXISTS "facility_bookings_update" ON public.facility_bookings;
+-CREATE POLICY "facility_bookings_update" ON public.facility_bookings FOR UPDATE TO authenticated USING (user_id = auth.uid() OR public.is_staff()) WITH CHECK (user_id = auth.uid() OR public.is_staff());
+-
+-DROP POLICY IF EXISTS "room_bookings_select" ON public.room_bookings;
+-CREATE POLICY "room_bookings_select" ON public.room_bookings FOR SELECT TO authenticated USING (true);
+-DROP POLICY IF EXISTS "room_bookings_insert" ON public.room_bookings;
+-CREATE POLICY "room_bookings_insert" ON public.room_bookings FOR INSERT TO authenticated WITH CHECK (faculty_id = auth.uid() OR public.is_admin());
+-DROP POLICY IF EXISTS "room_bookings_update_delete" ON public.room_bookings;
+-CREATE POLICY "room_bookings_update_delete" ON public.room_bookings FOR ALL TO authenticated USING (faculty_id = auth.uid() OR public.is_admin()) WITH CHECK (faculty_id = auth.uid() OR public.is_admin());
+-
+-DROP POLICY IF EXISTS "purchase_requests_select" ON public.purchase_requests;
+-CREATE POLICY "purchase_requests_select" ON public.purchase_requests FOR SELECT TO authenticated USING (requested_by = auth.uid() OR public.is_staff());
+-DROP POLICY IF EXISTS "purchase_requests_insert" ON public.purchase_requests;
+-CREATE POLICY "purchase_requests_insert" ON public.purchase_requests FOR INSERT TO authenticated WITH CHECK (public.is_staff());
+-DROP POLICY IF EXISTS "purchase_requests_update" ON public.purchase_requests;
+-CREATE POLICY "purchase_requests_update" ON public.purchase_requests FOR UPDATE TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+-
+-DROP POLICY IF EXISTS "audit_log_select" ON public.audit_log;
+-CREATE POLICY "audit_log_select" ON public.audit_log FOR SELECT TO authenticated USING (public.is_admin());
+-DROP POLICY IF EXISTS "audit_log_insert" ON public.audit_log;
+-CREATE POLICY "audit_log_insert" ON public.audit_log FOR INSERT TO authenticated WITH CHECK (true);
+-- 
+2.43.0
+

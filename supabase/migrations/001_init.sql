@@ -75,6 +75,13 @@ CREATE TABLE IF NOT EXISTS public.occupancy_reports (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure columns exist if table pre-existed from an earlier run
+ALTER TABLE public.occupancy_reports ADD COLUMN IF NOT EXISTS reporter_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
+ALTER TABLE public.occupancy_reports ADD COLUMN IF NOT EXISTS reporter_name TEXT DEFAULT 'Anonymous Student';
+ALTER TABLE public.occupancy_reports ADD COLUMN IF NOT EXISTS reporter_roll_no TEXT DEFAULT '';
+ALTER TABLE public.occupancy_reports ADD COLUMN IF NOT EXISTS reporter_role TEXT DEFAULT 'student';
+ALTER TABLE public.occupancy_reports ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+
 -- 6. PORTAL CONFIGURATION
 CREATE TABLE IF NOT EXISTS public.portal_settings (
     id TEXT PRIMARY KEY DEFAULT 'campus_config',
