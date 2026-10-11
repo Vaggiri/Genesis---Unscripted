@@ -3,6 +3,12 @@
  * 
  * Earliest-available-resource interval scheduling algorithm.
  * Pure function: No DB calls, strictly deterministic and unit-testable.
+ * 
+ * Complexity & Concurrency:
+ * The scheduler scans each active machine over up to 7 working days in 15-minute steps,
+ * skipping past existing bookings, so its cost grows with machines × days × bookings
+ * (small on campus-scale data). Correctness under concurrency is guaranteed by the
+ * PostgreSQL exclusion constraint, not by the algorithm.
  */
 
 function parseTimeToMinutes(timeStr) {

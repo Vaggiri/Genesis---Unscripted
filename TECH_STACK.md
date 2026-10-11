@@ -40,9 +40,9 @@
 
 | Module | Implementation | Description |
 | :--- | :--- | :--- |
-| **Interval Scheduler Algorithm** | `server/lib/scheduler.js` | Deterministic earliest-available-resource interval scheduling. Given a job duration and equipment type, iterates through available lab machines, filters out existing bookings and maintenance blocks, and returns the next contiguous slot in constant time. |
+| **Interval Scheduler Algorithm** | `server/lib/scheduler.js` | Deterministic earliest-available-resource interval scheduling. The scheduler scans each active machine over up to 7 working days in 15-minute steps, skipping past existing bookings, so its cost grows with machines × days × bookings (small on campus-scale data). Correctness under concurrency is guaranteed by the PostgreSQL exclusion constraint, not by the algorithm. |
 | **Concurrency Guarantees** | **PostgreSQL `btree_gist` Exclusion Constraint** | Database-level guarantee on `facility_bookings`: `EXCLUDE USING gist (resource_id WITH =, tstzrange(start_time, end_time) WITH &&)`. Simultaneous requests for the same slot return an immediate `409 Conflict` along with alternative slots. |
-| **Unit Test Coverage** | **Vitest** | Comprehensive unit tests in `server/tests/scheduler.test.js` validating empty calendars, exact slot fits, maintenance windows, and boundary conditions. |
+| **Unit Test Coverage** | **Vitest** | 18 unit tests across `scheduler.test.js`, `analytics.test.js`, and `chatEngine.test.js` validating empty calendars, exact slot fits, maintenance windows, analytics math, and Gemini chatbot fallback handling. |
 
 ---
 
@@ -52,7 +52,7 @@
 | :--- | :--- | :--- |
 | **Relational Database** | **Supabase (PostgreSQL 15)** | Normalized schema for `profiles`, `labs`, `resources`, `certifications`, `inventory_items`, `jobs`, `facility_bookings`, `room_bookings`, `purchase_requests`, and `audit_log`. |
 | **Row Level Security (RLS)** | **Postgres RLS Policies** | Role-based policies enforcing tenant privacy. Students can only view their own bookings; faculty and lab in-charges can review departmental requests; admins have management access. |
-| **File Storage** | **Supabase Storage** | Direct upload bucket (`innovation-assets`) for 3D model files (`.stl`), PCB Gerber archives (`.zip`), and project attachments. Direct storage uploads bypass server memory bottlenecks. |
+| **File Intake (Client-Side)** | **Browser-Side Inspection** | 3D model (.stl) and Gerber (.zip) files are inspected in the browser (volume/time estimate, magic-byte check); only the job metadata and estimates are saved to the database. Uploading originals to Supabase Storage is on the roadmap. |
 | **File Integrity Inspection** | `server/lib/fileRouter.js` | Magic-byte file validation (`solid`/binary STL header inspection) and ZIP-bomb protection (uncompressed size limits) preventing malicious uploads. |
 
 ---
@@ -61,10 +61,10 @@
 
 | Module | Implementation | Description |
 | :--- | :--- | :--- |
-| **Chatbot Architecture** | **Rule / Slot / Template Engine** | Deterministic intent extraction grounded directly in live Postgres lab data (drawer components, 3D printer queue, room occupancy). No large local models or tunnel bridges required. |
+| **Chatbot Architecture** | **Rule / Slot Engine with Gemini Fallback** | A rule-based multilingual intent/slot assistant with an optional Gemini classification fallback (`GEMINI_API_KEY`), grounded directly in live Postgres lab data (drawer components, 3D printer queue, room occupancy). No large local models or tunnel bridges required. |
 | **Voice Interface** | **Web Speech API** | Hands-free speech recognition (`SpeechRecognition`) and synthesized speech feedback (`speechSynthesis`) in the browser. |
 | **Multilingual Support** | **Unicode Script Detection** | Automatic language detection routing queries to localized response templates in English, Tamil, Hindi, and Malayalam. |
-| **Optional LLM Fallback** | **Google Gemini REST API** | Lightweight optional server-side fallback (`GEMINI_API_KEY`) for conversational queries when configured. |
+| **Optional LLM Fallback** | **Google Gemini REST API** | Lightweight optional server-side fallback (`GEMINI_API_KEY`) using `gemini-2.5-flash` for conversational queries when configured. |
 
 ---
 
