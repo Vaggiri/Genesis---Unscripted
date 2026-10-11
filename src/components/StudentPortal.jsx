@@ -6,33 +6,37 @@ import {
   User, 
   Clock, 
   Sparkles, 
-  Upload,
-  Package,
-  LogOut,
-  Check
+  Upload, 
+  Package, 
+  LogOut, 
+  Check,
+  Bell
 } from 'lucide-react';
 import VoiceChatBot from './VoiceChatBot';
 import LabDirectoryView from './LabDirectoryView';
 import ClassroomOccupancyModule from './ClassroomOccupancyModule';
 import JobUpload from './JobUpload';
 import InventorySearch from './InventorySearch';
+import NotificationsView from './NotificationsView';
+import YuktiLogo from './YuktiLogo';
+import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 
-export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking, onLogout }) {
-  const [activeTab, setActiveTab] = useState('ai_bot'); // 'ai_bot' | 'job_upload' | 'inventory' | 'directory' | 'my_bookings' | 'classrooms' | 'profile'
+export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking, onLogout, forcedTab = null, onClearForcedTab = null }) {
+  const [activeTab, setActiveTab] = useState('ai_bot'); // 'ai_bot' | 'job_upload' | 'inventory' | 'directory' | 'my_bookings' | 'classrooms' | 'notifications' | 'profile'
   const [checkingInId, setCheckingInId] = useState(null);
+  const { unreadCount } = useNotifications();
+
+  React.useEffect(() => {
+    if (forcedTab) {
+      setActiveTab(forcedTab);
+      if (onClearForcedTab) onClearForcedTab();
+    }
+  }, [forcedTab, onClearForcedTab]);
 
   const fullName = user?.full_name || user?.name || 'Student Innovator';
   const rollNo = user?.roll_no || 'Amrita Student';
   const dept = user?.department || 'Computer Science & Engineering';
-
-  const initials = fullName
-    .split(' ')
-    .filter(Boolean)
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'ST';
 
   const myBookings = user?.role === 'student'
     ? bookings
@@ -58,6 +62,7 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
     { id: 'directory', label: 'Labs & Resources', shortLabel: 'Labs', icon: Building2 },
     { id: 'my_bookings', label: 'My Reservations', shortLabel: 'Reservations', icon: Clock, count: myBookings.length },
     { id: 'classrooms', label: 'Space Radar', shortLabel: 'Radar', icon: Calendar },
+    { id: 'notifications', label: 'Notifications', shortLabel: 'Alerts', icon: Bell, count: unreadCount },
     { id: 'profile', label: 'Profile', shortLabel: 'Profile', icon: User }
   ];
 
@@ -75,22 +80,7 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
         gap: '0.85rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--amrita-maroon)',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '1.1rem',
-            boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)',
-            flexShrink: 0
-          }}>
-            {initials}
-          </div>
+          <YuktiLogo size={46} style={{ borderRadius: '13px', boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)' }} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
@@ -283,6 +273,10 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
           simulatedContext={simulatedContext}
           user={user}
         />
+      )}
+
+      {activeTab === 'notifications' && (
+        <NotificationsView />
       )}
 
       {activeTab === 'profile' && (

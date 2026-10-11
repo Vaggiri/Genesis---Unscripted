@@ -7,17 +7,20 @@ import {
   BookOpen,
   Wrench,
   Lock,
-  Globe
+  Globe,
+  Bell
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getSupabaseConfig } from '../services/supabaseClient';
+import YuktiLogo from './YuktiLogo';
 
 export default function Navbar({ 
   currentUser, 
-  onLogout, 
-  onOpenSupabaseModal
+  onLogout,
+  onOpenNotifications,
+  unreadNotificationsCount = 0
 }) {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const config = getSupabaseConfig();
   const isSupabaseActive = Boolean(config.url && config.key);
 
@@ -51,23 +54,8 @@ export default function Navbar({
       }}>
         
         {/* Logo & Portal Identity */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
-          <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '10px',
-            backgroundColor: 'var(--amrita-maroon)',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 900,
-            fontSize: '1.15rem',
-            boxShadow: '0 3px 10px rgba(164, 18, 63, 0.25)',
-            flexShrink: 0
-          }}>
-            Y
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: 0 }}>
+          <YuktiLogo size={38} />
           <div style={{ minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'nowrap' }}>
               <span style={{ 
@@ -92,7 +80,7 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* Right Tools: Language Switcher, Cloud DB (Dev), & Session */}
+        {/* Right Tools: Language Switcher, Database Status, Notifications, & Session */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
 
           {/* Language Switcher */}
@@ -118,33 +106,82 @@ export default function Navbar({
             </select>
           </div>
 
-          {/* Cloud Database Indicator (Dev Only) */}
-          {import.meta.env.DEV && onOpenSupabaseModal && (
-            <button
-              onClick={onOpenSupabaseModal}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                padding: '0.38rem 0.55rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: isSupabaseActive ? 'var(--status-available-bg)' : 'var(--bg-surface-alt)',
-                border: `1px solid ${isSupabaseActive ? 'var(--status-available-border)' : 'var(--border-light)'}`,
-                color: isSupabaseActive ? 'var(--status-available-text)' : 'var(--text-secondary)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-              title="Supabase Database Status (Dev Mode)"
-            >
-              <Database size={15} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
-              <span className="hide-mobile">{isSupabaseActive ? 'DB Connected' : 'DB'}</span>
-            </button>
-          )}
+          {/* Database Status (Clean Read-Only Indicator, No Edit Modal) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.35rem 0.65rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: isSupabaseActive ? 'var(--status-available-bg)' : 'var(--bg-surface-alt)',
+              border: `1px solid ${isSupabaseActive ? 'var(--status-available-border)' : 'var(--border-light)'}`,
+              color: isSupabaseActive ? 'var(--status-available-text)' : 'var(--text-secondary)',
+              fontSize: '0.75rem',
+              fontWeight: 600
+            }}
+            title={isSupabaseActive ? 'Database Connected & Synced' : 'Database Offline'}
+          >
+            <span style={{
+              width: '7px',
+              height: '7px',
+              borderRadius: '50%',
+              backgroundColor: isSupabaseActive ? 'var(--status-available)' : '#94a3b8',
+              boxShadow: isSupabaseActive ? '0 0 0 2px rgba(22, 163, 74, 0.25)' : 'none'
+            }} />
+            <Database size={13} color={isSupabaseActive ? 'var(--status-available)' : 'var(--text-muted)'} />
+            <span className="hide-mobile">{isSupabaseActive ? 'DB Connected' : 'DB Offline'}</span>
+          </div>
 
-          {/* User Session Profile & Logout */}
+          {/* User Session Profile, Notifications & Logout */}
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              
+              {/* Notification Bell Trigger */}
+              <button
+                type="button"
+                onClick={onOpenNotifications}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--bg-surface-alt)',
+                  border: '1px solid var(--border-light)',
+                  color: unreadNotificationsCount > 0 ? 'var(--amrita-maroon)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+                title={unreadNotificationsCount > 0 ? `${unreadNotificationsCount} unread notifications` : 'Notifications Radar'}
+              >
+                <Bell size={16} />
+                {unreadNotificationsCount > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    backgroundColor: 'var(--amrita-maroon)',
+                    color: '#ffffff',
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    minWidth: '16px',
+                    height: '16px',
+                    borderRadius: '999px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 3px',
+                    border: '2px solid #ffffff'
+                  }}>
+                    {unreadNotificationsCount}
+                  </span>
+                )}
+              </button>
+
+              {/* User Profile Pill */}
               <div
                 className="hide-mobile"
                 style={{
@@ -166,6 +203,7 @@ export default function Navbar({
                 </span>
               </div>
 
+              {/* Log Out Button */}
               <button
                 onClick={onLogout}
                 style={{

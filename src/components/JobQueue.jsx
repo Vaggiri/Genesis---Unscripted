@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Layers, Clock, CheckCircle2, XCircle, Play, Check, AlertCircle, ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Layers, Clock, CheckCircle2, XCircle, Play, Check, ShoppingCart } from 'lucide-react';
 import { api } from '../services/api';
 
 export default function JobQueue({ onOpenPurchaseRequest }) {
@@ -7,11 +7,7 @@ export default function JobQueue({ onOpenPurchaseRequest }) {
   const [loading, setLoading] = useState(true);
   const [filterKind, setFilterKind] = useState('all');
 
-  useEffect(() => {
-    loadJobs();
-  }, []);
-
-  const loadJobs = async () => {
+  const loadJobs = useCallback(async () => {
     try {
       setLoading(true);
       const data = await api.getJobs();
@@ -21,7 +17,11 @@ export default function JobQueue({ onOpenPurchaseRequest }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
 
   const handleUpdateStatus = async (jobId, newStatus) => {
     try {

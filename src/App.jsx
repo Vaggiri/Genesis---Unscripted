@@ -32,7 +32,7 @@ export default function App() {
       gain.connect(ctx.destination);
       osc.start();
       osc.stop(ctx.currentTime + 0.36);
-    } catch (_e) {
+    } catch {
       // AudioContext may be restricted before first interaction
     }
   };
@@ -44,6 +44,7 @@ export default function App() {
     updateBookingStatus,
     refresh: refreshBookings
   } = useBookings({
+    enabled: Boolean(user),
     onRealtimeEvent: (payload) => {
       if (payload.eventType === 'INSERT') {
         playNotificationChime('high');

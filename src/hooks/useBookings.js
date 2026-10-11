@@ -3,11 +3,13 @@ import { api } from '../services/api';
 import { getSupabaseClient } from '../services/supabaseClient';
 
 export function useBookings(options = {}) {
+  const enabled = options.enabled !== false;
   const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState(null);
 
   const fetchBookings = useCallback(async () => {
+    if (!enabled) return;
     try {
       setLoading(true);
       const res = await api.getInnovationBookings();
@@ -19,18 +21,20 @@ export function useBookings(options = {}) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enabled]);
 
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  useEffect(() => {
+    optionsRef.current = options;
+  }, [options]);
   const pollingRef = useRef(null);
 
   const startPolling = useCallback(() => {
-    if (pollingRef.current) return;
+    if (!enabled || pollingRef.current) return;
     pollingRef.current = setInterval(() => {
       fetchBookings();
     }, 20000);
-  }, [fetchBookings]);
+  }, [enabled, fetchBookings]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current) {
@@ -40,6 +44,12 @@ export function useBookings(options = {}) {
   }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
     fetchBookings();
 
     const supabase = getSupabaseClient();
