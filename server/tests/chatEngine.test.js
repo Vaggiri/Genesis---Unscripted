@@ -109,3 +109,53 @@ describe('Gemini Classification Fallback', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
+
+describe('Multilingual Language Detection', () => {
+  it('detects native Tamil and Tanglish correctly', async () => {
+    const { detectLanguage } = await import('../lib/chatEngine.js');
+    expect(detectLanguage('வணக்கம், உதவி வேண்டும்')).toBe('ta');
+    expect(detectLanguage('10k resistor ஆய்வகத்தில் உள்ளதா?')).toBe('ta');
+    expect(detectLanguage('vanakkam 10k resistor irukka bro')).toBe('ta');
+    expect(detectLanguage('printer slot venum')).toBe('ta');
+  });
+
+  it('detects native Telugu and Tenglish correctly', async () => {
+    const { detectLanguage } = await import('../lib/chatEngine.js');
+    expect(detectLanguage('నమస్కారం, సహాయం కావాలి')).toBe('te');
+    expect(detectLanguage('10k resistors స్టాక్ ఉందా?')).toBe('te');
+    expect(detectLanguage('namaskaram 3D printer slot kavali')).toBe('te');
+    expect(detectLanguage('taragathi gadi khali unda')).toBe('te');
+  });
+
+  it('falls back to default language for generic English', async () => {
+    const { detectLanguage } = await import('../lib/chatEngine.js');
+    expect(detectLanguage('Do we have 10k resistors in stock?', 'en')).toBe('en');
+    expect(detectLanguage('', 'ta')).toBe('ta');
+  });
+});
+
+describe('Multilingual Intent Classification & Component Normalization', () => {
+  it('classifies Tamil intents accurately', async () => {
+    const { classifyIntent } = await import('../lib/chatEngine.js');
+    expect(classifyIntent('எனக்கு உதவி வேண்டும்').intent).toBe('help');
+    expect(classifyIntent('10k resistor உள்ளதா?').intent).toBe('inventory_check');
+    expect(classifyIntent('3D பிரிண்டர் முன்பதிவு செய்ய வேண்டும்').intent).toBe('suggest_slot');
+    expect(classifyIntent('காலி வகுப்பறைகள் எவை?').intent).toBe('free_rooms');
+  });
+
+  it('classifies Telugu intents accurately', async () => {
+    const { classifyIntent } = await import('../lib/chatEngine.js');
+    expect(classifyIntent('నాకు సహాయం కావాలి').intent).toBe('help');
+    expect(classifyIntent('10k resistors స్టాక్ ఉందా?').intent).toBe('inventory_check');
+    expect(classifyIntent('3D ప్రింటర్ స్లాట్ కావాలి').intent).toBe('suggest_slot');
+    expect(classifyIntent('తరగతి గదులు ఖాళీగా ఉన్నాయా?').intent).toBe('free_rooms');
+  });
+
+  it('normalizes Tamil and Telugu component queries to English keywords', async () => {
+    const { normalizeComponentSearch } = await import('../lib/chatEngine.js');
+    expect(normalizeComponentSearch('10k ரெசிஸ்டர் உள்ளதா')).toBe('10k resistor');
+    expect(normalizeComponentSearch('10k రెసిస్టర్లు స్టాక్ ఉందా')).toBe('10k resistor');
+    expect(normalizeComponentSearch('esp32')).toBe('esp32');
+  });
+});
+

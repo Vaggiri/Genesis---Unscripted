@@ -29,7 +29,30 @@ const defaultTemplates = {
     human_handoff: "For immediate in-person assistance, contact:\n• FabLab In-charge: Er. Rajesh V. (FAB-01)\n• AI & HPC Lab: Dr. K. Swaminathan (AMR-FAC-209)\n• Campus Helpdesk: Ext 4022",
     unknown: "I am not certain about that request. You can ask me to check components (e.g. 'do you have 10k resistors'), book a lab slot, or type 'help'."
   },
-  ta: {},
+  ta: {
+    greeting: "வணக்கம்! நான் அம்ரிதா யுக்தி, உங்களின் வளாகக் கண்டுபிடிப்பு மற்றும் இட ஒதுக்கீட்டு உதவியாளர். உங்களுக்கு நான் எவ்வாறு உதவ முடியும்?",
+    help: "கூறு பொருட்களின் இருப்பு (component stock), ஆய்வக இயந்திரங்கள், கணினி பணிநிலைய முன்பதிவு, காலி வகுப்பறைகள் ஆகியவற்றை நான் சரிபார்க்க உதவ முடியும்.",
+    inventory_found: "{{name}} பொருள் {{lab}} ஆய்வகத்தில் உள்ளது: {{quantity}} இருப்பு உள்ளன (இடம்: {{location}}, புதுப்பிக்கப்பட்டது: {{updatedAt}}).",
+    inventory_not_found: "\"{{query}}\" என்ற கூறு பொருள் தற்போது இருப்பில் இல்லை. ஆய்வகப் பொறுப்பாளரிடம் கோரிக்கை வைக்கலாம்.",
+    lab_info: "{{name}} ஆய்வகம் {{block}}, தளம் {{floor}}-ல் அமைந்துள்ளது (கொள்ளளவு: {{capacity}} மாணவர்கள்).",
+    labs_list: "வளாக கண்டுபிடிப்பு மையங்கள்:\n• செயற்கை நுண்ணறிவு மற்றும் HPC ஆய்வகம் (AB-3)\n• டிஜிட்டல் ஃபேப்லாப் (AB-1)\n• ஐஓடி மற்றும் ரோபோடிக்ஸ் மையம் (AB-2)\n• பிசிபி வடிவமைப்பு ஆய்வகம் (AB-1)",
+    slot_suggested: "{{resourceName}} இயந்திரத்திற்கான பரிந்துரைக்கப்பட்ட நேரம்: {{start}} முதல் {{end}} வரை.",
+    free_rooms: "தற்போது காலியாக உள்ள வகுப்பறைகள்: {{rooms}}.",
+    human_handoff: "நேரடி உதவிக்கு தொடர்பு கொள்ளவும்:\n• ஃபேப்லாப் பொறுப்பாளர்: Er. ராஜேஷ் வி.\n• AI ஆய்வகம்: Dr. K. சுவாமிநாதன்\n• உதவி மையம்: Ext 4022",
+    unknown: "மன்னிக்கவும், உங்கள் கோரிக்கை புரியவில்லை. 'resistors இருக்கிறதா' அல்லது 'help' என்று கேட்கலாம்."
+  },
+  te: {
+    greeting: "నమస్కారం! నేను అమృత యుక్తి, మీ క్యాంపస్ ఆవిష్కరణ మరియు స్థల సహాయకుడిని. మీకు నేను ఎలా సహాయపడగలను?",
+    help: "కాంపోనెంట్ డ్రాయర్ స్టాక్, ల్యాబ్ మెషీన్లు, 3D ప్రింటర్ స్లాట్లు, ఖాళీ తరగతి గదులను తనిఖీ చేయడానికి నేను సహాయపడగలను.",
+    inventory_found: "{{name}} కాంపోనెంట్ {{lab}} ల్యాబ్‌లో అందుబాటులో ఉంది: {{quantity}} యూనిట్లు ఉన్నాయి (స్థానం: {{location}}, నవీకరించబడింది: {{updatedAt}}).",
+    inventory_not_found: "\"{{query}}\" ప్రస్తుతం డ్రాయర్ స్టాక్‌లో అందుబాటులో లేదు. మీరు ల్యాబ్ ఇన్‌చార్జ్‌ని సంప్రదించవచ్చు.",
+    lab_info: "{{name}} ల్యాబ్ {{block}}, ఫ్లోర్ {{floor}} లో ఉంది (సామర్థ్యం: {{capacity}} విద్యార్థులు).",
+    labs_list: "క్యాంపస్ ఇన్నోవేషన్ ల్యాబ్‌లు:\n• AI & హై పెర్ఫార్మెన్స్ కంప్యూటింగ్ ల్యాబ్ (AB-3)\n• డిజిటల్ ఫ్యాబ్‌ల్యాబ్ (AB-1)\n• IoT & రోబోటిక్స్ సెంటర్ (AB-2)\n• PCB ప్రోటోటైపింగ్ ల్యాబ్ (AB-1)",
+    slot_suggested: "{{resourceName}} యంత్రం కోసం కేటాయించిన సమయం: {{start}} నుండి {{end}} వరకు.",
+    free_rooms: "ప్రస్తుతం ఖాళీగా ఉన్న తరగతి గదులు: {{rooms}}.",
+    human_handoff: "సహాయం కోసం సంప్రదించండి:\n• ఫ్యాబ్‌ల్యాబ్ ఇన్‌చార్జ్: Er. రాజేష్ V.\n• AI ల్యాబ్: Dr. K. స్వామినాథన్\n• హెల్ప్‌డెస్క్: Ext 4022",
+    unknown: "క్షమించండి, మీ అభ్యర్థన అర్థం కాలేదు. '10k resistors ఉందా' లేదా 'help' అని అడగండి."
+  },
   hi: {},
   ml: {}
 };
@@ -39,6 +62,7 @@ try {
   templates = {
     en: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'en.json'), 'utf8')),
     ta: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ta.json'), 'utf8')),
+    te: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'te.json'), 'utf8')),
     hi: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'hi.json'), 'utf8')),
     ml: JSON.parse(fs.readFileSync(path.join(__dirname, 'templates', 'ml.json'), 'utf8'))
   };
@@ -47,13 +71,21 @@ try {
 }
 
 /**
- * Detect language from text via Unicode blocks.
+ * Detect language from text via Unicode blocks and colloquial scripts.
  */
 export function detectLanguage(text, defaultLang = 'en') {
   if (!text) return defaultLang;
-  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil
-  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'; // Malayalam
-  if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari / Hindi
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'ta'; // Tamil script
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'te'; // Telugu script
+  if (/[\u0D00-\u0D7F]/.test(text)) return 'ml'; // Malayalam script
+  if (/[\u0900-\u097F]/.test(text)) return 'hi'; // Devanagari / Hindi script
+
+  // Code-mixed detection for Tanglish (Tamil in Latin script)
+  const lower = text.toLowerCase();
+  if (/\b(vanakkam|enga|irukku|irukka|venum|aayvagam|udhavi|solunga|eppadi|endha|ennanna|thevai)\b/.test(lower)) return 'ta';
+  // Code-mixed detection for Tenglish (Telugu in Latin script)
+  if (/\b(namaskaram|ekkada|undi|unda|kavali|prayogasala|sahayam|cheppandi|ela|emundi|emundhi|taragathi)\b/.test(lower)) return 'te';
+
   return defaultLang || 'en';
 }
 
@@ -67,41 +99,108 @@ function renderTemplate(lang, key, params = {}) {
 }
 
 /**
- * Classifies intent and extracts slots from the message.
+ * Helper to match either ASCII words with word boundaries or Unicode substring tokens.
  */
-function classifyIntent(text) {
+function matchesAny(text, latinWords = [], unicodeTokens = []) {
+  const lower = text.toLowerCase();
+  for (const token of unicodeTokens) {
+    if (lower.includes(token.toLowerCase())) return true;
+  }
+  if (latinWords.length > 0) {
+    const rx = new RegExp(`(^|\\s|[^\\w])(${latinWords.join('|')})($|\\s|[^\\w])`, 'i');
+    if (rx.test(lower)) return true;
+  }
+  return false;
+}
+
+/**
+ * Normalizes multi-lingual component search queries (Tamil, Telugu, English) to match DB inventory records.
+ */
+export function normalizeComponentSearch(text) {
+  if (!text) return 'resistor';
+  let t = text.toLowerCase();
+  // Map Indic hardware terms to standard English keywords
+  t = t.replace(/(ரெசிஸ்டர்|ரெசிஸ்டர்கள்|రెసిస్టర్|రెసిస్టర్లు)/g, 'resistor');
+  t = t.replace(/(கெபாசிட்டர்|కెపాసిటర్)/g, 'capacitor');
+  t = t.replace(/(சென்சார்|సెన్సార్)/g, 'sensor');
+  t = t.replace(/(பிலமென்ட்|ఫిలమెంట్)/g, 'filament');
+  t = t.replace(/(போர்டு|బోర్డు)/g, 'board');
+  t = t.replace(/(பிரிண்டர்|ప్రింటర్)/g, 'printer');
+
+  const match = t.match(/(10k\s*resistor|220\s*resistor|resistor|capacitor|esp32|jetson|pico|arduino|filament|fr4|pla|petg|sensor)/i);
+  if (match) return match[0];
+
+  const cleaned = t.replace(/do you have|is there|any|stock|in stock|உள்ளதா|இருக்கிறதா|இருக்கா|இருப்பு|கிடைக்குமா|ఉందా|ఉన్నాయా|స్టాక్|లభ్యత|దొరుకుతుందా|irukka|irukku|unda|unnaya/g, '').trim();
+  return cleaned || 'resistor';
+}
+
+/**
+ * Classifies intent and extracts slots from the message across English, Tamil, Telugu, Hindi, and Malayalam.
+ */
+export function classifyIntent(text) {
   const lower = text.toLowerCase();
 
-  if (/\b(help|commands|உதவி|मदद|സഹായം|what can you do)\b/.test(lower)) {
+  // 1. Help intent
+  if (matchesAny(
+    lower,
+    ['help', 'commands', 'udhavi', 'sahayam', 'madad', 'what can you do', 'enni cheyagalaru', 'enna seiya mudiyum'],
+    ['உதவி', 'உதவுங்கள்', 'मदद', 'സഹായം', 'సహాయం', 'సహాయపడగలరు']
+  )) {
     return { intent: 'help' };
   }
 
-  if (/\b(person|human|incharge|in-charge|faculty|contact|phone|helpdesk|தொடர்பு|நேரடி|संपर्क|ഫോൺ)\b/.test(lower)) {
+  // 2. Human handoff / contact
+  if (matchesAny(
+    lower,
+    ['person', 'human', 'incharge', 'in-charge', 'faculty', 'contact', 'phone', 'helpdesk', 'thodarbu', 'samparkam', 'help desk'],
+    ['தொடர்பு', 'நேரடி', 'ஆசிரியர்', 'இன்சார்ஜ்', 'संपर्क', 'ഫോൺ', 'సంప్రదించండి', 'సంప్రదించు', 'ఫోన్', 'హెల్ప్‌డెస్క్']
+  )) {
     return { intent: 'human_handoff' };
   }
 
-  if (/\b(free|empty|vacant|classroom|lecture hall|வகுப்பறை|காலி|कक्षा|ക്ലാസ്)\b/.test(lower)) {
+  // 3. Free classrooms
+  if (matchesAny(
+    lower,
+    ['free', 'empty', 'vacant', 'classroom', 'lecture hall', 'taragathi', 'khali', 'kaali', 'gadi', 'gadulu'],
+    ['வகுப்பறை', 'காலி', 'कक्षा', 'ക്ലാസ്', 'తరగతి', 'ఖాళీ', 'గదులు']
+  )) {
     return { intent: 'free_rooms' };
   }
 
-  if (/\b(job|queue|status|file|3d print file|submission|வேலை|நிலை|स्थिति|സ്റ്റാറ്റസ്)\b/.test(lower) && !/\b(book|reserve)\b/.test(lower)) {
+  // 4. Job status
+  if (matchesAny(
+    lower,
+    ['job', 'queue', 'status', 'submission', 'sthiti', 'velai'],
+    ['வேலை', 'நிலை', 'स्थिति', 'സ്റ്റാറ്റസ്', 'ఉద్యోగం', 'స్థితి']
+  ) && !matchesAny(lower, ['book', 'reserve', 'munpadhivu', 'kavali', 'venum'], ['முன்பதிவு', 'బుకింగ్'])) {
     return { intent: 'job_status' };
   }
 
-  if (/\b(book|slot|reserve|schedule|machine|workstation|printer|வேண்டுகோள்|முன்பதிவு|நேரம்|स्लॉट|സ്ലോട്ട്)\b/.test(lower)) {
+  // 5. Suggest slot / machine booking
+  if (matchesAny(
+    lower,
+    ['book', 'slot', 'reserve', 'schedule', 'machine', 'workstation', 'printer', 'kavali', 'venum', 'thevai', 'munpadhivu', 'booking'],
+    ['வேண்டுகோள்', 'முன்பதிவு', 'நேரம்', 'ஸ்லாட்', 'स्लॉट', 'സ്ലോട്ട്', 'బుకింగ్', 'స్లాట్', 'కేటాయింపు', 'కావాలి', 'ప్రింటర్']
+  )) {
     return { intent: 'suggest_slot' };
   }
 
-  if (/\b(stock|component|resistor|capacitor|ic|esp32|arduino|jetson|filament|wire|breadboard|இருப்பு|உள்ளதா|இருக்கிறதா|स्टॉक|ലഭ്യമാണോ)\b/.test(lower)) {
-    // Extract component keywords
-    const match = lower.match(/(10k\s*resistor|220\s*resistor|resistor|capacitor|esp32|jetson|pico|filament|fr4|pla|petg|sensor)/i);
-    return { 
-      intent: 'inventory_check', 
-      query: match ? match[0] : lower.replace(/do you have|is there|any|stock|in stock|உள்ளதா|இருக்கிறதா/g, '').trim() 
-    };
+  // 6. Inventory / component check
+  if (matchesAny(
+    lower,
+    ['stock', 'component', 'resistor', 'capacitor', 'ic', 'esp32', 'arduino', 'jetson', 'filament', 'wire', 'breadboard', 'irukka', 'irukku', 'unda', 'unnaya', 'kedaikuma', 'dorukutunda'],
+    ['இருப்பு', 'உள்ளதா', 'இருக்கிறதா', 'இருக்கா', 'ரெசிஸ்டர்', 'கெபாசிட்டர்', 'சென்சார்', 'பிலமென்ட்', 'स्टॉक', 'ലഭ്യമാണോ', 'స్టాక్', 'ఉందా', 'ఉన్నాయా', 'లభ్యత', 'దొరుకుతుందా', 'రెసిస్టర్', 'కెపాసిటర్', 'సెన్సార్']
+  )) {
+    const query = normalizeComponentSearch(lower);
+    return { intent: 'inventory_check', query };
   }
 
-  if (/\b(lab|fablab|hpc|robotics|eda|workshop|ஆய்வகம்|प्रयोगशाला|ലാബ്)\b/.test(lower)) {
+  // 7. Lab info
+  if (matchesAny(
+    lower,
+    ['lab', 'fablab', 'hpc', 'robotics', 'eda', 'workshop', 'aayvagam', 'prayogasala'],
+    ['ஆய்வகம்', 'ஆய்வகங்கள்', 'प्रयोगशाला', 'ലാബ്', 'ప్రయోగశాల', 'ప్రయోగశాలలు', 'ల్యాబ్']
+  )) {
     return { intent: 'lab_info' };
   }
 
@@ -200,14 +299,15 @@ export async function processChatMessage({ message, preferredLanguage = 'en', us
   }
 
   if (intent === 'inventory_check') {
-    const searchTerm = query || 'resistor';
+    const searchTerm = normalizeComponentSearch(query || message);
     let items = [];
 
     if (supabase) {
+      const keyword = searchTerm.split(' ')[0] || 'resistor';
       const { data } = await supabase
         .from('inventory_items')
         .select('*, labs(name)')
-        .ilike('name', `%${searchTerm.split(' ')[0]}%`)
+        .ilike('name', `%${keyword}%`)
         .limit(3);
       items = data || [];
     } else {
@@ -345,7 +445,7 @@ You assist students, faculty, and lab managers with:
 2. Drawer Component Stock: Electronic components such as 10k and 220Ω resistors, electrolytic and ceramic capacitors, ESP32, Arduino Uno, Raspberry Pi, Jetson Nano, sensors, and ICs located in campus drawer bins.
 3. Classroom & Lab Space Radar: Checking open lecture halls (AB1, AB2, AB3) and reserving workstations.
 4. Institutional ICTS Hardware Requisitions: Laptop and monitor allocation requests for academic/research use.
-5. Multilingual capability: Support English, Tamil (தமிழ்), Hindi (हिन्दी), and Malayalam (മലയാളം). If the user asks in an Indian language, respond in that language.
+5. Multilingual Native Fluency: Fully fluent in English, Tamil (தமிழ்), Telugu (తెలుగు), Hindi (हिन्दी), and Malayalam (മലയാളം). You effortlessly comprehend colloquial speech and phonetic spellings (Tanglish such as 'enga irukku / venum', Tenglish such as 'ekkada undi / kavali', Hinglish). Always reply warmly, accurately, and naturally in the user's spoken or preferred language.
 Be clear, accurate, friendly, and concise.`;
 
   const messagesPayload = [
@@ -391,7 +491,11 @@ Be clear, accurate, friendly, and concise.`;
   // Check if an action card for slot booking should be attached
   let actionCard = null;
   const lowerMsg = message.toLowerCase();
-  if (/\b(book|slot|reserve|schedule|printer|bambu)\b/.test(lowerMsg)) {
+  if (matchesAny(
+    lowerMsg,
+    ['book', 'slot', 'reserve', 'schedule', 'printer', 'bambu', 'munpadhivu', 'kavali', 'venum'],
+    ['முன்பதிவு', 'ஸ்லாட்', 'బుకింగ్', 'స్లాట్', 'కేటాయింపు', 'ప్రింటర్']
+  )) {
     const best = {
       resourceId: 'res-3d-bambu-x1',
       resourceName: 'Bambu Lab X1-Carbon',
