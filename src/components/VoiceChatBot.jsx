@@ -10,8 +10,7 @@ import {
   Sparkles, 
   ArrowRight,
   Cloud,
-  Zap,
-  Languages
+  Zap 
 } from 'lucide-react';
 import { api } from '../services/api';
 
@@ -21,37 +20,13 @@ function createMessageId() {
   return `msg-${Date.now()}-${msgCounter}`;
 }
 
-const SUPPORTED_LANGUAGES = [
-  { code: 'ta', bcp47: 'ta-IN', name: 'தமிழ்', flag: '🇮🇳', label: 'Tamil' },
-  { code: 'te', bcp47: 'te-IN', name: 'తెలుగు', flag: '🇮🇳', label: 'Telugu' },
-  { code: 'en', bcp47: 'en-IN', name: 'English', flag: '🌐', label: 'English' },
-  { code: 'hi', bcp47: 'hi-IN', name: 'हिन्दी', flag: '🇮🇳', label: 'Hindi' },
-  { code: 'ml', bcp47: 'ml-IN', name: 'മലയാളം', flag: '🇮🇳', label: 'Malayalam' },
-];
-
-const langCodes = {
-  ta: 'ta-IN',
-  te: 'te-IN',
-  en: 'en-IN',
-  hi: 'hi-IN',
-  ml: 'ml-IN'
-};
-
-const placeholders = {
-  ta: 'தமிழில் பேசுங்கள் அல்லது தட்டச்சு செய்யுங்கள் (எ.கா: 10k resistor உள்ளதா?)...',
-  te: 'తెలుగులో మాట్లాడండి లేదా టైప్ చేయండి (ఉదా: 10k resistors ఉందా?)...',
-  en: 'Ask in English or speak into mic (e.g. 10k resistors in stock?)...',
-  hi: 'हिन्दी में बोलें या टाइप करें (उदा: 10k resistor उपलब्ध है?)...',
-  ml: 'മലയാളത്തിൽ ചോദിക്കൂ (ഉദാ: 10k resistor ഉണ്ടോ?)...'
-};
-
 export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) {
   const [modelMode, setModelMode] = useState('cloud'); // 'cloud' | 'local'
   const [messages, setMessages] = useState([
     {
       id: 'init-1',
       sender: 'bot',
-      text: 'Vanakkam & Namaskaram! I am Amrita Yukti AI, your multilingual campus innovation assistant.\n\n🎙️ You can speak or chat in English, தமிழ் (Tamil), or తెలుగు (Telugu)!\n• Component drawers (10k resistors / 10k ரெசிஸ்டர் / 10k రెసిస్టర్లు)\n• 3D printer slots & FabLab reservations\n• Vacant classrooms & ICTS hardware allocation\n\nChoose your voice language below and click the microphone to speak naturally!',
+      text: 'Vanakkam! I am Amrita Yukti AI, your campus innovation assistant. Ask me about drawer stock (e.g. 10k resistors), 3D printer slots, vacant classrooms, or hardware allocation from ICTS! You can toggle between Cloud Model (OmniRoute vag) and Local Model anytime above.',
       mode: 'cloud',
       model: 'vag'
     }
@@ -59,7 +34,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
 
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [language, setLanguage] = useState('ta'); // Default to Tamil so Tamil speech recognition is active right away
+  const [language, setLanguage] = useState('en');
   const [isListening, setIsListening] = useState(false);
   const [speechSupported] = useState(() => Boolean(typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)));
   const [ttsEnabled, setTtsEnabled] = useState(false);
@@ -68,8 +43,6 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
   const messagesEndRef = useRef(null);
   const recognitionRef = useRef(null);
 
-  const activeLangObj = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
-
   useEffect(() => {
     // Detect Web Speech API support
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -77,7 +50,6 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = 'ta-IN';
 
       recognition.onresult = (event) => {
         const transcript = Array.from(event.results)
@@ -103,28 +75,6 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, actionCardData]);
 
-  const handleSelectLanguage = (newLang) => {
-    setLanguage(newLang);
-    const targetBcp = langCodes[newLang] || 'en-IN';
-    if (recognitionRef.current) {
-      recognitionRef.current.lang = targetBcp;
-      if (isListening) {
-        try {
-          recognitionRef.current.stop();
-          setTimeout(() => {
-            if (recognitionRef.current) {
-              recognitionRef.current.lang = targetBcp;
-              recognitionRef.current.start();
-              setIsListening(true);
-            }
-          }, 150);
-        } catch {
-          // Handled gracefully
-        }
-      }
-    }
-  };
-
   const toggleVoiceInput = () => {
     if (!recognitionRef.current) return;
 
@@ -132,49 +82,30 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
       recognitionRef.current.stop();
       setIsListening(false);
     } else {
-      const targetBcp = langCodes[language] || 'ta-IN';
-      recognitionRef.current.lang = targetBcp;
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err) {
-        console.warn('Could not start recognition:', err);
-      }
+      const langCodes = {
+        en: 'en-IN',
+        ta: 'ta-IN',
+        hi: 'hi-IN',
+        ml: 'ml-IN'
+      };
+      recognitionRef.current.lang = langCodes[language] || 'en-IN';
+      recognitionRef.current.start();
+      setIsListening(true);
     }
   };
 
-  const speakText = (text, forcedLang = null) => {
+  const speakText = (text) => {
     if (!ttsEnabled || !window.speechSynthesis) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    const currentLangCode = forcedLang || language;
-    const targetBcp47 = langCodes[currentLangCode] || 'en-IN';
-    utterance.lang = targetBcp47;
-
-    const voices = window.speechSynthesis.getVoices();
-    if (voices && voices.length > 0) {
-      const matched = voices.find(v => v.lang === targetBcp47 || v.lang.replace('_', '-') === targetBcp47) ||
-                      voices.find(v => v.lang.startsWith(targetBcp47.split('-')[0]));
-      if (matched) {
-        utterance.voice = matched;
-      }
-    }
+    const langCodes = { en: 'en-IN', ta: 'ta-IN', hi: 'hi-IN', ml: 'ml-IN' };
+    utterance.lang = langCodes[language] || 'en-IN';
     window.speechSynthesis.speak(utterance);
   };
 
-  const handleSend = async (textToSend = null, explicitLang = null) => {
+  const handleSend = async (textToSend = null) => {
     const query = (textToSend || input).trim();
     if (!query || loading) return;
-
-    const currentLang = explicitLang || language;
-    if (explicitLang && explicitLang !== language) {
-      handleSelectLanguage(explicitLang);
-    }
-
-    if (isListening && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    }
 
     const userMsg = {
       id: createMessageId(),
@@ -193,7 +124,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
         text: m.text
       }));
 
-      const response = await api.sendChatMessage(query, currentLang, modelMode, historyPayload);
+      const response = await api.sendChatMessage(query, language, modelMode, historyPayload);
       const botText = response.reply || 'I have checked our campus records.';
 
       const botMsg = {
@@ -206,7 +137,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
       };
 
       setMessages(prev => [...prev, botMsg]);
-      speakText(botText, response.lang || currentLang);
+      speakText(botText);
 
       if (response.actionCard) {
         setActionCardData(response.actionCard);
@@ -233,13 +164,10 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
   };
 
   const quickPrompts = [
-    { label: '🇮🇳 தமிழ்: 10k resistor உள்ளதா?', query: '10k resistor ஆய்வகத்தில் உள்ளதா?', lang: 'ta' },
-    { label: '🇮🇳 தமிழ்: 3D பிரிண்டர் முன்பதிவு', query: '3D பிரிண்டர் முன்பதிவு செய்ய வேண்டும்', lang: 'ta' },
-    { label: '🇮🇳 తెలుగు: 10k resistors ఉందా?', query: '10k resistors స్టాక్ ఉందా?', lang: 'te' },
-    { label: '🇮🇳 తెలుగు: 3D ప్రింటర్ స్లాట్ కావాలి', query: '3D ప్రింటర్ స్లాట్ కావాలి', lang: 'te' },
-    { label: '🔍 10k Resistors', query: 'Do we have 10k resistors in stock?', lang: 'en' },
-    { label: '🖨️ Bambu Lab Slot', query: 'Suggest an open slot for 3D printer today', lang: 'en' },
-    { label: '🏫 Free Classrooms', query: 'Which lecture halls are currently free?', lang: 'en' }
+    { label: '🔍 10k Resistors', query: 'Do we have 10k resistors in stock?' },
+    { label: '🖨️ Bambu Lab Slot', query: 'Suggest an open slot for 3D printer today' },
+    { label: '🏫 Free Classrooms', query: 'Which lecture halls are currently free?' },
+    { label: '🇮🇳 தமிழ் உதவி', query: 'வளாகத்தில் உள்ள ஆய்வகங்கள் என்னென்ன?' }
   ];
 
   return (
@@ -337,10 +265,10 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             {ttsEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
 
-          {/* Language Selector in Header */}
+          {/* Language Selector */}
           <select
             value={language}
-            onChange={(e) => handleSelectLanguage(e.target.value)}
+            onChange={(e) => setLanguage(e.target.value)}
             className="border rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none"
             style={{
               backgroundColor: 'rgba(255, 255, 255, 0.15)',
@@ -348,18 +276,16 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
               color: '#ffffff',
               cursor: 'pointer'
             }}
-            title="Active Assistant Language"
           >
-            {SUPPORTED_LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code} style={{ color: '#0f172a', background: '#ffffff' }}>
-                {l.flag} {l.name} ({l.code.toUpperCase()})
-              </option>
-            ))}
+            <option value="en" style={{ color: '#0f172a', background: '#ffffff' }}>EN</option>
+            <option value="ta" style={{ color: '#0f172a', background: '#ffffff' }}>தமிழ்</option>
+            <option value="hi" style={{ color: '#0f172a', background: '#ffffff' }}>हिन्दी</option>
+            <option value="ml" style={{ color: '#0f172a', background: '#ffffff' }}>മലയാളം</option>
           </select>
         </div>
       </div>
 
-      {/* Active Model & Language Status Strip */}
+      {/* Active Model Indicator Strip */}
       <div style={{
         padding: '0.45rem 1rem',
         backgroundColor: modelMode === 'cloud' ? '#fbf8ff' : '#fffbeb',
@@ -375,28 +301,17 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
           <span style={{ fontWeight: 800, color: 'var(--text-main)' }}>Active AI Model:</span>
           {modelMode === 'cloud' ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#7e22ce', fontWeight: 800 }}>
-              <Cloud size={13} /> OmniRoute Gateway • Combo: <code>vag</code>
+              <Cloud size={13} /> OmniRoute Gateway • Combo: <code>vag</code> (localhost:20128)
             </span>
           ) : (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#b45309', fontWeight: 800 }}>
-              <Zap size={13} /> Campus Local Grounded Model
+              <Zap size={13} /> Campus Local Grounded Model (Database & Rules)
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--amrita-maroon)', fontWeight: 700 }}>
-          <span>Voice Acoustic Mode:</span>
-          <span style={{ 
-            backgroundColor: '#ffffff', 
-            padding: '1px 6px', 
-            borderRadius: '6px', 
-            border: '1px solid #e2e8f0', 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '3px' 
-          }}>
-            {activeLangObj.flag} {activeLangObj.name} ({activeLangObj.bcp47})
-          </span>
-        </div>
+        <span style={{ fontSize: '0.675rem', color: 'var(--text-muted)' }}>
+          {modelMode === 'cloud' ? 'Intelligent Multi-Turn LLM' : 'Instant Campus DB Grounding'}
+        </span>
       </div>
 
       {/* Messages Scroll Area */}
@@ -494,7 +409,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
           <button
             key={idx}
             type="button"
-            onClick={() => handleSend(p.query, p.lang)}
+            onClick={() => handleSend(p.query)}
             className="bg-white hover:bg-gray-200 border border-gray-300 text-gray-700 px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition shadow-2xs"
             style={{ cursor: 'pointer' }}
           >
@@ -502,61 +417,6 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
           </button>
         ))}
       </div>
-
-      {/* Multilingual Voice Bar */}
-      <div className="px-3 py-1.5 bg-slate-50 border-t border-gray-200 flex items-center justify-between flex-wrap gap-1.5 shrink-0">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-600 uppercase tracking-wider shrink-0">
-          <Languages size={13} className="text-amrita-maroon" />
-          <span>Voice Language:</span>
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-          {SUPPORTED_LANGUAGES.map((langItem) => {
-            const isActive = language === langItem.code;
-            return (
-              <button
-                key={langItem.code}
-                type="button"
-                onClick={() => handleSelectLanguage(langItem.code)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 shrink-0 ${
-                  isActive
-                    ? 'bg-amrita-maroon text-white shadow-sm ring-1 ring-amrita-maroon'
-                    : 'bg-white hover:bg-gray-100 text-gray-700 border border-gray-200'
-                }`}
-                style={{ cursor: 'pointer' }}
-                title={`Set Voice & Input Recognition to ${langItem.name} (${langItem.bcp47})`}
-              >
-                <span>{langItem.flag}</span>
-                <span>{langItem.name}</span>
-                <span className={`text-[10px] ${isActive ? 'text-white/80' : 'text-gray-400'}`}>
-                  ({langItem.bcp47})
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Active Listening Pulse Indicator */}
-      {isListening && (
-        <div className="px-3 py-2 bg-rose-50 border-t border-rose-200 flex items-center justify-between gap-2 text-xs text-rose-800 shrink-0">
-          <div className="flex items-center gap-2 font-semibold">
-            <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping shrink-0" />
-            <span>🎙️ Listening in {activeLangObj.flag} {activeLangObj.name} ({activeLangObj.bcp47})... Speak clearly now!</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              if (recognitionRef.current) recognitionRef.current.stop();
-              setIsListening(false);
-              if (input.trim()) handleSend();
-            }}
-            className="px-2.5 py-0.5 rounded bg-rose-600 hover:bg-rose-700 text-white font-bold text-[11px] transition"
-            style={{ cursor: 'pointer' }}
-          >
-            Done & Send
-          </button>
-        </div>
-      )}
 
       {/* Input Bar */}
       <div className="p-3 bg-white border-t border-gray-200 shrink-0 space-y-1.5">
@@ -568,45 +428,29 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
           className="flex items-center gap-2"
         >
           {speechSupported && (
-            <div style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={toggleVoiceInput}
-                className={`rounded-xl border transition shrink-0 ${
-                  isListening
-                    ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
-                }`}
-                style={{
-                  width: '42px',
-                  height: '42px',
-                  minWidth: '42px',
-                  minHeight: '42px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer'
-                }}
-                title={isListening ? `Stop listening in ${activeLangObj.name}` : `Speak into mic in ${activeLangObj.name} (${activeLangObj.bcp47})`}
-              >
-                {isListening ? <MicOff size={18} /> : <Mic size={18} />}
-              </button>
-              <span style={{
-                position: 'absolute',
-                bottom: '-4px',
-                right: '-4px',
-                fontSize: '9px',
-                fontWeight: 800,
-                backgroundColor: isListening ? '#e11d48' : '#0f172a',
-                color: '#ffffff',
-                padding: '0 3px',
-                borderRadius: '4px',
-                lineHeight: '12px'
-              }}>
-                {activeLangObj.code.toUpperCase()}
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              className={`rounded-xl border transition shrink-0 ${
+                isListening
+                  ? 'bg-rose-500 text-white border-rose-600 animate-pulse'
+                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
+              }`}
+              style={{
+                width: '42px',
+                height: '42px',
+                minWidth: '42px',
+                minHeight: '42px',
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+              title={isListening ? 'Stop listening' : 'Speak into microphone'}
+            >
+              {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
           )}
 
           <input
@@ -614,7 +458,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
             id="voice-chatbot-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={isListening ? `Listening in ${activeLangObj.name} (${activeLangObj.bcp47})...` : (placeholders[language] || placeholders.en)}
+            placeholder={isListening ? 'Listening to speech...' : 'Ask about component drawers, machine slots, or free rooms...'}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amrita-maroon"
             style={{ minHeight: '42px', backgroundColor: '#ffffff', color: 'var(--text-main)' }}
           />
@@ -641,7 +485,7 @@ export default function VoiceChatBot({ onBookSlot, currentUser: _currentUser }) 
 
         {speechSupported && (
           <p className="text-[10px] text-gray-400 text-center">
-            🔒 Web Speech recognition runs natively in browser using acoustic model ({activeLangObj.bcp47}). No audio data is uploaded.
+            🔒 Web Speech recognition runs directly inside your browser. No voice audio is transmitted to our servers.
           </p>
         )}
       </div>

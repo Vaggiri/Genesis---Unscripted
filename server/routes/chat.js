@@ -14,7 +14,7 @@ router.post('/', sensitiveLimiter, requireAuth, async (req, res) => {
       modelMode = 'cloud',
       history = []
     } = req.body;
-    const preferredLanguage = ['en', 'ta', 'te', 'hi', 'ml'].includes(rawLang) ? rawLang : 'en';
+    const preferredLanguage = ['en', 'ta', 'hi', 'ml'].includes(rawLang) ? rawLang : 'en';
 
     // Support either single message string or array of messages from UI
     let queryText = message;

@@ -176,7 +176,10 @@ router.patch('/purchase-requests/:id', requireAuth, requireRole('admin'), async 
     return res.json({ success: true, request: data });
   }
 
-  // 4. ICTS Hardware & Asset Requisitions
+  res.json({ success: true, request: { id, status } });
+});
+
+// 4. ICTS Hardware & Asset Requisitions
 const inMemoryIctsRequests = [];
 
 router.get('/icts-requests', async (req, res) => {
