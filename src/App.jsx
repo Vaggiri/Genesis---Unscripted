@@ -44,6 +44,7 @@ export default function App() {
   // Real-time facility bookings hook with Supabase Realtime subscription
   const {
     bookings,
+    refresh: refreshBookings,
     createBooking,
     updateBookingStatus
   } = useBookings({
@@ -120,6 +121,14 @@ export default function App() {
   }, [toastNotification]);
 
   const handleNewBooking = async (newBooking) => {
+    // If called without booking payload (e.g. from job submission or check-in refresh), trigger refresh
+    if (!newBooking || typeof newBooking !== 'object' || !newBooking.resource_id) {
+      if (refreshBookings) {
+        await refreshBookings();
+      }
+      return;
+    }
+
     try {
       await createBooking(newBooking);
       setToastNotification({

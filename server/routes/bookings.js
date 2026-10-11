@@ -128,10 +128,10 @@ router.post('/bookings/suggest', requireAuth, async (req, res) => {
 // 4. POST /api/bookings (Create booking with exclusion conflict check)
 const bookingCreateSchema = z.object({
   resource_id: z.string().min(1),
-  start_ts: z.string().datetime(),
-  end_ts: z.string().datetime(),
+  start_ts: z.string().refine(v => !Number.isNaN(Date.parse(v)), { message: 'Invalid start_ts date' }),
+  end_ts: z.string().refine(v => !Number.isNaN(Date.parse(v)), { message: 'Invalid end_ts date' }),
   purpose: z.string().max(500).optional(),
-  job_id: z.string().optional()
+  job_id: z.string().nullish()
 });
 
 router.post('/bookings', requireAuth, async (req, res) => {
@@ -140,7 +140,9 @@ router.post('/bookings', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Validation failed', details: parsed.error.issues });
   }
 
-  const { resource_id, start_ts, end_ts, purpose = '', job_id = null } = parsed.data;
+  const { resource_id, purpose = '', job_id = null } = parsed.data;
+  const start_ts = new Date(parsed.data.start_ts).toISOString();
+  const end_ts = new Date(parsed.data.end_ts).toISOString();
   const userId = req.user.id;
   const supabase = getSupabase();
 
@@ -148,7 +150,7 @@ router.post('/bookings', requireAuth, async (req, res) => {
   const endMs = new Date(end_ts).getTime();
   if (!(endMs > startMs)) return res.status(400).json({ error: 'end_ts must be after start_ts' });
   if (endMs - startMs > 8 * 3600 * 1000) return res.status(400).json({ error: 'A booking cannot exceed 8 hours' });
-  if (startMs < Date.now() - 5 * 60 * 1000) return res.status(400).json({ error: 'Cannot book a slot in the past' });
+  if (startMs < Date.now() - 30 * 60 * 1000) return res.status(400).json({ error: 'Cannot book a slot in the past' });
   if (startMs > Date.now() + 30 * 24 * 3600 * 1000) return res.status(400).json({ error: 'Bookings open only 30 days ahead' });
 
   if (supabase) {
