@@ -304,5 +304,118 @@ export const api = {
 
   async adminGetAuditLog() {
     return await apiRequest('/admin/audit-log');
+  },
+
+  // 11. ICTS Amrita Hardware & Asset Requisitions
+  async getIctsRequests() {
+    try {
+      const res = await apiRequest('/inventory/icts-requests');
+      if (res && Array.isArray(res) && res.length > 0) return res;
+    } catch {
+      // Local storage fallback
+    }
+
+    const stored = localStorage.getItem('amrita_icts_requests');
+    if (stored) {
+      try { return JSON.parse(stored); } catch { /* ignore */ }
+    }
+
+    const initialSeed = [
+      {
+        id: 'icts-req-101',
+        faculty_name: 'Dr. Anand Ramanathan',
+        emp_id: 'AMR-FAC-2041',
+        department: 'Electronics & Communication Engineering',
+        email: 'anand.r@cb.amrita.edu',
+        phone_extension: '4102',
+        office_room: 'AB-2 Room 304',
+        item_category: 'laptop',
+        item_name: 'Apple MacBook Pro 16" M3 Pro (36GB Unified RAM, 512GB SSD)',
+        specifications: 'Apple M3 Pro 12-core CPU, 18-core GPU, Liquid Retina XDR display. Needed for VLSI CAD & AI model evaluations.',
+        purpose: 'Teaching ECE Sem 6 Real-Time Embedded Systems & IEEE Autonomous Drone Hackathon project mentoring',
+        allocation_type: 'Permanent Faculty Allocation',
+        status: 'approved',
+        created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+        approved_at: new Date(Date.now() - 86400000).toISOString(),
+        approved_by: 'ICTS Director / Admin Desk',
+        admin_notes: 'Approved under ICTS Annual Faculty Computing Grant 2026. Packaged with 140W USB-C charger and neoprene sleeve.',
+        asset_tag: 'AMR-ICTS-LAP-2026-089',
+        serial_number: 'SN-APL-M3P-992014',
+        verification_code: 'ICTS-PASS-8941-VERIFIED',
+        collection_location: 'ICTS Central Desk, Academic Block 1 Ground Floor (Counter 2)'
+      },
+      {
+        id: 'icts-req-102',
+        faculty_name: 'Dr. Priya Varma',
+        emp_id: 'AMR-FAC-1982',
+        department: 'Computer Science & Engineering',
+        email: 'priya.v@cb.amrita.edu',
+        phone_extension: '4318',
+        office_room: 'AB-1 Room 412',
+        item_category: 'monitor',
+        item_name: 'Dell UltraSharp 27" 4K USB-C Hub Monitor (U2723QE)',
+        specifications: '4K UHD IPS Black, 90W Power Delivery, RJ-45 Ethernet, DisplayPort Daisy-chaining',
+        purpose: 'Multi-screen setup for curriculum review, large codebase profiling, and student code review sessions',
+        allocation_type: 'Semester Loan (6 Months)',
+        status: 'pending',
+        created_at: new Date(Date.now() - 3600000 * 5).toISOString(),
+        verification_code: 'ICTS-PASS-7731-PENDING'
+      }
+    ];
+
+    localStorage.setItem('amrita_icts_requests', JSON.stringify(initialSeed));
+    return initialSeed;
+  },
+
+  async createIctsRequest(payload) {
+    const newReq = {
+      id: `icts-req-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      status: 'pending',
+      verification_code: `ICTS-PASS-${Math.floor(1000 + Math.random() * 9000)}-PENDING`,
+      ...payload
+    };
+
+    try {
+      const res = await apiRequest('/inventory/icts-requests', {
+        method: 'POST',
+        body: JSON.stringify(newReq)
+      });
+      if (res && res.request) {
+        newReq.id = res.request.id || newReq.id;
+      }
+    } catch {
+      // Local storage fallback
+    }
+
+    const current = await this.getIctsRequests();
+    const updated = [newReq, ...current];
+    localStorage.setItem('amrita_icts_requests', JSON.stringify(updated));
+    return newReq;
+  },
+
+  async updateIctsRequest(id, updates) {
+    try {
+      await apiRequest(`/inventory/icts-requests/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(updates)
+      });
+    } catch {
+      // Local storage fallback
+    }
+
+    const current = await this.getIctsRequests();
+    const updated = current.map(item => {
+      if (item.id === id) {
+        return {
+          ...item,
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+      }
+      return item;
+    });
+    localStorage.setItem('amrita_icts_requests', JSON.stringify(updated));
+    return updated.find(i => i.id === id);
   }
 };

@@ -1271,3 +1271,196 @@ button, input, select, textarea {
 .ml-2 { margin-left: 0.5rem !important; }
 .ring-2 { box-shadow: 0 0 0 2px var(--amrita-maroon) !important; }
 
+/* =========================================================================
+   Executive Portal Navigation Grid & Mobile Responsive Dock
+   ========================================================================= */
+
+/* Grid-based tab navigation replacing cramped single-line horizontal scroll */
+.portal-nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .portal-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .portal-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.45rem;
+  }
+}
+
+.portal-nav-tile {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  background-color: var(--bg-surface);
+  border: 1.5px solid var(--border-light);
+  color: var(--text-secondary);
+  font-size: 0.825rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  min-height: 48px;
+}
+
+.portal-nav-tile:hover {
+  background-color: var(--bg-surface-alt);
+  border-color: var(--amrita-maroon-border);
+  color: var(--amrita-maroon);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(164, 18, 63, 0.08);
+}
+
+.portal-nav-tile:active {
+  transform: scale(0.98);
+}
+
+.portal-nav-tile.active {
+  background: linear-gradient(135deg, var(--amrita-maroon) 0%, #830c31 100%);
+  border-color: var(--amrita-maroon);
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(164, 18, 63, 0.28);
+}
+
+.portal-nav-tile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background-color: rgba(164, 18, 63, 0.08);
+  color: var(--amrita-maroon);
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.portal-nav-tile.active .portal-nav-tile-icon {
+  background-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
+.portal-nav-tile-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.portal-nav-tile-badge {
+  margin-left: auto;
+  font-size: 0.675rem;
+  font-weight: 800;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background-color: var(--amrita-maroon);
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.portal-nav-tile.active .portal-nav-tile-badge {
+  background-color: #ffffff;
+  color: var(--amrita-maroon);
+}
+
+/* Universal Fixed Mobile Navigation Dock */
+.mobile-bottom-dock {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-bottom-dock {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    background-color: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border-light);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    z-index: 999;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 0.5rem;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mobile-dock-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0.35rem 0.6rem;
+    border-radius: 8px;
+    position: relative;
+    transition: all 0.15s ease;
+    flex: 1;
+    max-width: 80px;
+  }
+
+  .mobile-dock-btn:active {
+    transform: scale(0.92);
+  }
+
+  .mobile-dock-btn.active {
+    color: var(--amrita-maroon);
+    font-weight: 800;
+  }
+
+  .mobile-dock-btn.active svg {
+    color: var(--amrita-maroon);
+    transform: translateY(-1px);
+  }
+
+  .mobile-dock-badge {
+    position: absolute;
+    top: 2px;
+    right: 14px;
+    background-color: #dc2626;
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 800;
+    min-width: 15px;
+    height: 15px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    box-shadow: 0 0 0 2px #ffffff;
+  }
+
+  /* Add bottom clearance on mobile so fixed bottom dock never covers content */
+  .mobile-content-clearance {
+    padding-bottom: 5.25rem !important;
+  }
+}
+
+
