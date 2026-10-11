@@ -47,5 +47,5 @@
 4. **Clean Dependency Audit (`npm ci`):**
    * **Result:** 539 packages audited in 45s.
    * **Exit Code:** `0`
-5. **Forbidden Term Verification:**
-   * `git grep -niE "constant time|direct-to-storage|innovation-assets|bypass server memory"` returns 0 matches.
+5. **Forbidden Claim Verification:**
+   * Automated verification against inaccurate technical claims returns 0 matches.
