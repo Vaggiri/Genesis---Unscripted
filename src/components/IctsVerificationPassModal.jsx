@@ -10,27 +10,22 @@ import {
   Package, 
   ShieldCheck, 
   MapPin, 
-  Calendar, 
-  User, 
-  Hash, 
-  Building
+  User 
 } from 'lucide-react';
 import YuktiLogo from './YuktiLogo';
 
+function renderCategoryIcon(cat, size = 24) {
+  switch (cat) {
+    case 'laptop': return <Laptop size={size} />;
+    case 'monitor': return <Monitor size={size} />;
+    case 'workstation': return <Cpu size={size} />;
+    case 'tablet': return <Tablet size={size} />;
+    default: return <Package size={size} />;
+  }
+}
+
 export default function IctsVerificationPassModal({ request, isOpen, onClose }) {
   if (!isOpen || !request) return null;
-
-  const getItemIcon = (cat) => {
-    switch (cat) {
-      case 'laptop': return Laptop;
-      case 'monitor': return Monitor;
-      case 'workstation': return Cpu;
-      case 'tablet': return Tablet;
-      default: return Package;
-    }
-  };
-
-  const ItemIcon = getItemIcon(request.item_category);
 
   const handlePrint = () => {
     window.print();
@@ -174,7 +169,7 @@ export default function IctsVerificationPassModal({ request, isOpen, onClose }) 
               justifyContent: 'center',
               flexShrink: 0
             }}>
-              <ItemIcon size={24} />
+              {renderCategoryIcon(request.item_category, 24)}
             </div>
 
             <div style={{ flex: 1, minWidth: 0 }}>

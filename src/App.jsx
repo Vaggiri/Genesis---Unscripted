@@ -6,6 +6,7 @@ import FacultyPortal from './components/FacultyPortal';
 import LabInchargePortal from './components/LabInchargePortal';
 import AdminPortal from './components/AdminPortal';
 import NotificationsView from './components/NotificationsView';
+import MobileBottomNav from './components/MobileBottomNav';
 import { useAuth } from './context/AuthContext';
 import { useNotifications } from './context/NotificationContext';
 import { useBookings } from './hooks/useBookings';
@@ -15,6 +16,7 @@ export default function App() {
   const { user, profile, role, loading: authLoading, signOut } = useAuth();
   const { unreadCount, addNotification } = useNotifications();
   const [showNotificationsModal, setShowNotificationsModal] = useState(false);
+  const [currentPortalTab, setCurrentPortalTab] = useState(null);
   const [toastNotification, setToastNotification] = useState(null);
 
   // Synthesized notification chime (zero audio dependencies)
@@ -204,7 +206,7 @@ export default function App() {
 
       {/* Main Content Area */}
       <main style={{ flex: 1 }}>
-        <div className="container" style={{ paddingTop: '1.25rem', paddingBottom: '2rem' }}>
+        <div className="container mobile-content-clearance" style={{ paddingTop: '1.25rem', paddingBottom: '2rem' }}>
           {!currentUser ? (
             <LoginPage />
           ) : (
@@ -216,6 +218,8 @@ export default function App() {
                   bookings={bookings}
                   onNewBooking={handleNewBooking}
                   onLogout={signOut}
+                  activeTab={currentPortalTab}
+                  onTabChange={setCurrentPortalTab}
                 />
               )}
 
@@ -228,6 +232,8 @@ export default function App() {
                   onReject={handleRejectBooking}
                   onNewBooking={handleNewBooking}
                   onLogout={signOut}
+                  activeTab={currentPortalTab}
+                  onTabChange={setCurrentPortalTab}
                 />
               )}
 
@@ -235,6 +241,8 @@ export default function App() {
                 <LabInchargePortal
                   currentUser={currentUser}
                   onBookSlot={handleNewBooking}
+                  activeTab={currentPortalTab}
+                  onTabChange={setCurrentPortalTab}
                 />
               )}
 
@@ -243,6 +251,8 @@ export default function App() {
                   onRefreshNeeded={refreshGlobalData}
                   settings={settings}
                   onSaveSettings={(newSet) => setSettings(newSet)}
+                  activeTab={currentPortalTab}
+                  onTabChange={setCurrentPortalTab}
                 />
               )}
             </>
@@ -389,6 +399,23 @@ export default function App() {
             <NotificationsView />
           </div>
         </div>
+      )}
+
+      {/* Universal Fixed Mobile Bottom Navigation Dock (Visible on <= 768px screens) */}
+      {currentUser && (
+        <MobileBottomNav
+          role={currentUser.role}
+          activeTab={currentPortalTab || (currentUser.role === 'lab_incharge' ? 'queue' : currentUser.role === 'admin' ? 'utilization' : 'classrooms')}
+          onSelectTab={(tabId) => {
+            if (tabId === 'notifications') {
+              setShowNotificationsModal(true);
+            } else {
+              setCurrentPortalTab(tabId);
+            }
+          }}
+          unreadNotificationsCount={unreadCount}
+          pendingApprovalsCount={bookings.filter(b => b.status === 'pending').length}
+        />
       )}
     </div>
   );

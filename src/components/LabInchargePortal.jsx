@@ -10,8 +10,18 @@ import YuktiLogo from './YuktiLogo';
 import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 
-export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot }) {
-  const [activeTab, setActiveTab] = useState('queue');
+export default function LabInchargePortal({ 
+  currentUser, 
+  onBookSlot: _onBookSlot,
+  activeTab: externalTab,
+  onTabChange
+}) {
+  const [internalTab, setInternalTab] = useState('queue');
+  const activeTab = externalTab || internalTab;
+  const setActiveTab = (tabId) => {
+    setInternalTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+  };
   const { unreadCount } = useNotifications();
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [showOrderModal, setShowOrderModal] = useState(false);
@@ -83,98 +93,39 @@ export default function LabInchargePortal({ currentUser, onBookSlot: _onBookSlot
         </button>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex border-b border-gray-200 overflow-x-auto gap-2">
-        <button
-          onClick={() => setActiveTab('queue')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'queue'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Layers className="w-4 h-4" /> Work Order Queue
-        </button>
-
-        <button
-          onClick={() => setActiveTab('approvals')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'approvals'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <CheckSquare className="w-4 h-4" /> Slot Approvals
-        </button>
-
-        <button
-          onClick={() => setActiveTab('notifications')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'notifications'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Bell className="w-4 h-4" /> Notifications
-          {unreadCount > 0 && (
-            <span style={{
-              backgroundColor: '#dc2626',
-              color: '#ffffff',
-              fontSize: '0.65rem',
-              fontWeight: 800,
-              padding: '0.1rem 0.4rem',
-              borderRadius: '999px',
-              marginLeft: '0.25rem'
-            }}>
-              {unreadCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inventory-upload')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'inventory-upload'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Package className="w-4 h-4" /> CSV Inventory Intake
-        </button>
-
-        <button
-          onClick={() => setActiveTab('inventory-search')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'inventory-search'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <Package className="w-4 h-4" /> Drawer Stock Radar
-        </button>
-
-        <button
-          onClick={() => setActiveTab('orders')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'orders'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <ShoppingCart className="w-4 h-4" /> Purchase Requests
-        </button>
-
-        <button
-          onClick={() => setActiveTab('utilization')}
-          className={`px-4 py-2.5 font-bold text-sm border-b-2 flex items-center gap-2 whitespace-nowrap transition ${
-            activeTab === 'utilization'
-              ? 'border-amrita-maroon text-amrita-maroon'
-              : 'border-transparent text-gray-500 hover:text-gray-800'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" /> Machine Analytics
-        </button>
-      </div>
+      {/* Responsive Command Grid Navigation */}
+      <nav className="portal-nav-grid" aria-label="Workshop Manager Navigation">
+        {[
+          { id: 'queue', label: 'Work Order Queue', icon: Layers },
+          { id: 'approvals', label: 'Slot Approvals', icon: CheckSquare },
+          { id: 'notifications', label: 'Notifications', icon: Bell, badge: unreadCount },
+          { id: 'inventory-upload', label: 'CSV Intake', icon: Package },
+          { id: 'inventory-search', label: 'Drawer Stock Radar', icon: Package },
+          { id: 'orders', label: 'Requisitions', icon: ShoppingCart },
+          { id: 'utilization', label: 'Machine Analytics', icon: BarChart3 }
+        ].map((t) => {
+          const Icon = t.icon;
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setActiveTab(t.id)}
+              className={`portal-nav-tile ${isActive ? 'active' : ''}`}
+            >
+              <div className="portal-nav-tile-icon">
+                <Icon size={17} />
+              </div>
+              <span className="portal-nav-tile-text">{t.label}</span>
+              {t.badge > 0 && (
+                <span className="portal-nav-tile-badge">
+                  {t.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
 
       {/* Tab Panels */}
       {activeTab === 'notifications' && (

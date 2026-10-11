@@ -22,8 +22,23 @@ import YuktiLogo from './YuktiLogo';
 import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 
-export default function StudentPortal({ user, simulatedContext, bookings = [], onNewBooking, onLogout, forcedTab = null, onClearForcedTab = null }) {
-  const [activeTab, setActiveTab] = useState('ai_bot'); // 'ai_bot' | 'job_upload' | 'inventory' | 'directory' | 'my_bookings' | 'classrooms' | 'notifications' | 'profile'
+export default function StudentPortal({ 
+  user, 
+  simulatedContext, 
+  bookings = [], 
+  onNewBooking, 
+  onLogout, 
+  forcedTab = null, 
+  onClearForcedTab = null,
+  activeTab: externalTab,
+  onTabChange
+}) {
+  const [internalTab, setInternalTab] = useState('classrooms');
+  const activeTab = externalTab || internalTab;
+  const setActiveTab = (tabId) => {
+    setInternalTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+  };
   const [checkingInId, setCheckingInId] = useState(null);
   const { unreadCount } = useNotifications();
 
@@ -108,55 +123,31 @@ export default function StudentPortal({ user, simulatedContext, bookings = [], o
         </div>
       </div>
 
-      {/* Segmented Navigation Tab Bar */}
-      <div style={{
-        display: 'flex',
-        gap: '0.4rem',
-        overflowX: 'auto',
-        paddingBottom: '0.5rem',
-        marginBottom: '1rem',
-        borderBottom: '1px solid var(--border-light)'
-      }}>
+      {/* Responsive Command Grid Navigation */}
+      <nav className="portal-nav-grid" aria-label="Student Portal Navigation">
         {navTabs.map((t) => {
           const Icon = t.icon;
           const isActive = activeTab === t.id;
           return (
             <button
               key={t.id}
+              type="button"
               onClick={() => setActiveTab(t.id)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-                padding: '0.45rem 0.85rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: isActive ? 'var(--amrita-maroon)' : 'var(--bg-surface)',
-                color: isActive ? '#ffffff' : 'var(--text-secondary)',
-                border: `1px solid ${isActive ? 'var(--amrita-maroon)' : 'var(--border-light)'}`,
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.15s ease'
-              }}
+              className={`portal-nav-tile ${isActive ? 'active' : ''}`}
             >
-              <Icon size={15} />
-              <span>{t.label}</span>
+              <div className="portal-nav-tile-icon">
+                <Icon size={17} />
+              </div>
+              <span className="portal-nav-tile-text">{t.label}</span>
               {t.count > 0 && (
-                <span style={{
-                  backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : 'var(--amrita-maroon)',
-                  color: '#ffffff',
-                  fontSize: '0.65rem',
-                  padding: '0.05rem 0.35rem',
-                  borderRadius: '10px'
-                }}>
+                <span className="portal-nav-tile-badge">
                   {t.count}
                 </span>
               )}
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {/* Main Tab Panels */}
       {activeTab === 'ai_bot' && (

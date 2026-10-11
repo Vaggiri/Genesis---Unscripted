@@ -9,23 +9,37 @@ import {
   Trash2, 
   CheckCircle, 
   Save, 
-  ShieldCheck,
-  BarChart3,
-  FileSpreadsheet,
-  UserCog,
-  ArrowLeft,
-  Bell
+  ShieldCheck, 
+  BarChart3, 
+  FileSpreadsheet, 
+  UserCog, 
+  ArrowLeft, 
+  Bell, 
+  Laptop 
 } from 'lucide-react';
 import { api } from '../services/api';
 import UtilizationDashboard from './UtilizationDashboard';
 import NotificationsView from './NotificationsView';
+import IctsRequisitionsView from './IctsRequisitionsView';
 import YuktiLogo from './YuktiLogo';
 import { useNotifications } from '../context/NotificationContext';
 
-export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings }) {
-  const [activeTab, setActiveTab] = useState('utilization'); // 'utilization' | 'notifications' | 'classrooms' | 'timetables' | 'reports' | 'settings' | 'users' | 'audit' | 'timetables-import'
+export default function AdminPortal({ 
+  onRefreshNeeded, 
+  settings, 
+  onSaveSettings,
+  activeTab: externalTab,
+  onTabChange
+}) {
+  const [internalTab, setInternalTab] = useState('utilization');
+  const activeTab = externalTab || internalTab;
+  const setActiveTab = (tabId) => {
+    setInternalTab(tabId);
+    if (onTabChange) onTabChange(tabId);
+  };
   const [previousTab, setPreviousTab] = useState(null);
   const { unreadCount } = useNotifications();
+  const [ictsRequests, setIctsRequests] = useState([]);
 
   const handleTabChange = (newTab) => {
     if (newTab !== activeTab) {
@@ -90,13 +104,14 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
 
   const loadAll = useCallback(async () => {
     try {
-      const [classRes, ttRes, repRes, setRes, usersRes, auditRes] = await Promise.all([
+      const [classRes, ttRes, repRes, setRes, usersRes, auditRes, ictsRes] = await Promise.all([
         api.getClassrooms('Monday', '10:00'),
         api.getTimetables(),
         api.getReports(),
         api.getSettings(),
         api.adminGetUsers().catch(() => []),
-        api.adminGetAuditLog().catch(() => [])
+        api.adminGetAuditLog().catch(() => []),
+        api.getIctsRequests().catch(() => [])
       ]);
       setClassrooms(classRes.classrooms || []);
       setTimetables(ttRes || []);
@@ -104,10 +119,13 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
       if (setRes) setAdminSettings(setRes);
       setUsersList(usersRes || []);
       setAuditLogs(auditRes || []);
+      setIctsRequests(ictsRes || []);
     } catch (err) {
       console.error('Failed to load admin data:', err);
     }
   }, []);
+
+  const pendingIctsCount = ictsRequests.filter(r => r.status === 'pending').length;
 
   const handleUpdateRole = async (userId, newRole) => {
     try {
@@ -312,10 +330,11 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
         )}
       </div>
 
-      {/* Modern Desktop Segmented Navigation Bar */}
-      <nav className="nav-segmented-bar" aria-label="Admin Navigation">
+      {/* Responsive Command Grid Navigation */}
+      <nav className="portal-nav-grid" aria-label="Admin Navigation">
         {[
           { id: 'utilization', label: 'Utilization Engine', icon: BarChart3 },
+          { id: 'icts', label: 'ICTS Gear Requisitions', icon: Laptop, badge: pendingIctsCount },
           { id: 'notifications', label: `Notifications`, icon: Bell, badge: unreadCount },
           { id: 'users', label: `Users & Roles (${usersList.length})`, icon: UserCog },
           { id: 'timetables-import', label: 'Import Timetable CSV', icon: FileSpreadsheet },
@@ -332,20 +351,14 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
               key={tab.id}
               type="button"
               onClick={() => handleTabChange(tab.id)}
-              className={`nav-segment-item ${isActive ? 'active' : ''}`}
+              className={`portal-nav-tile ${isActive ? 'active' : ''}`}
             >
-              <Icon size={16} />
-              <span>{tab.label}</span>
+              <div className="portal-nav-tile-icon">
+                <Icon size={17} />
+              </div>
+              <span className="portal-nav-tile-text">{tab.label}</span>
               {tab.badge > 0 && (
-                <span style={{
-                  backgroundColor: '#dc2626',
-                  color: '#ffffff',
-                  fontSize: '0.65rem',
-                  fontWeight: 800,
-                  padding: '0.1rem 0.4rem',
-                  borderRadius: '999px',
-                  marginLeft: '0.25rem'
-                }}>
+                <span className="portal-nav-tile-badge">
                   {tab.badge}
                 </span>
               )}
@@ -397,6 +410,11 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
       {/* TAB: NOTIFICATIONS & ALERTS */}
       {activeTab === 'notifications' && (
         <NotificationsView />
+      )}
+
+      {/* TAB: ICTS HARDWARE REQUISITIONS */}
+      {activeTab === 'icts' && (
+        <IctsRequisitionsView currentUser={{ full_name: 'ICTS Admin Desk', role: 'admin' }} isAdmin={true} />
       )}
 
       {/* TAB 2: CLASSROOMS CRUD */}
@@ -908,33 +926,6 @@ export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings 
       {activeTab === 'utilization' && (
         <UtilizationDashboard />
       )}
-
-      {/* Mobile Bottom Navigation */}
-      <div className="mobile-bottom-nav">
-        {[
-          { id: 'utilization', label: 'Analytics', icon: BarChart3 },
-          { id: 'notifications', label: 'Alerts', icon: Bell },
-          { id: 'classrooms', label: 'Rooms', icon: Building },
-          { id: 'timetables', label: 'Timetable', icon: Calendar },
-          { id: 'reports', label: 'Reports', icon: Flag },
-          { id: 'settings', label: 'Settings', icon: Sliders }
-        ].map(tab => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`mobile-nav-item ${isActive ? 'active' : ''}`}
-            >
-              <Icon size={20} />
-              <span style={{ fontSize: '11px', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                {tab.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
 
     </div>
   );

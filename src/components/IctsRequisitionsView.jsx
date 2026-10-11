@@ -7,22 +7,27 @@ import {
   Package, 
   Plus, 
   CheckCircle2, 
-  Clock, 
-  XCircle, 
-  Filter, 
-  ExternalLink, 
   Check, 
-  X, 
-  ShieldCheck, 
-  Building, 
-  Sparkles,
-  MapPin,
-  HelpCircle,
-  FileText
+  ShieldCheck,
+  FileText 
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useNotifications } from '../context/NotificationContext';
 import IctsVerificationPassModal from './IctsVerificationPassModal';
+
+function generateAssetTag(category) {
+  const catCode = category === 'laptop' ? 'LAP' : category === 'monitor' ? 'MON' : 'AST';
+  const randNum = Math.floor(100 + Math.random() * 900);
+  return `AMR-ICTS-${catCode}-2026-${randNum}`;
+}
+
+function generateSerialNo() {
+  return `SN-ICTS-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+function generateVerificationCode() {
+  return `ICTS-PASS-${Math.floor(1000 + Math.random() * 9000)}-VERIFIED`;
+}
 
 export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
   const { addNotification } = useNotifications();
@@ -112,7 +117,21 @@ export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
   };
 
   useEffect(() => {
-    loadRequests();
+    let mounted = true;
+    api.getIctsRequests()
+      .then(data => {
+        if (mounted) {
+          setRequests(data || []);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to load ICTS requests:', err);
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleCreateRequest = async (e) => {
@@ -135,7 +154,7 @@ export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
         allocation_type: formAllocation
       };
 
-      const created = await api.createIctsRequest(payload);
+      await api.createIctsRequest(payload);
       setShowRequestModal(false);
 
       // Notify user
@@ -157,10 +176,8 @@ export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
 
   const handleStartApproval = (req) => {
     setApprovingItem(req);
-    const catCode = req.item_category === 'laptop' ? 'LAP' : req.item_category === 'monitor' ? 'MON' : 'AST';
-    const randNum = Math.floor(100 + Math.random() * 900);
-    setAssignedAssetTag(`AMR-ICTS-${catCode}-2026-${randNum}`);
-    setAssignedSerialNo(`SN-ICTS-${Math.floor(100000 + Math.random() * 900000)}`);
+    setAssignedAssetTag(generateAssetTag(req.item_category));
+    setAssignedSerialNo(generateSerialNo());
     setAdminNotes('Approved for academic & research use. Handover verified by ICTS Admin.');
   };
 
@@ -169,7 +186,7 @@ export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
     if (!approvingItem) return;
 
     try {
-      const verificationCode = `ICTS-PASS-${Math.floor(1000 + Math.random() * 9000)}-VERIFIED`;
+      const verificationCode = generateVerificationCode();
       await api.updateIctsRequest(approvingItem.id, {
         status: 'approved',
         approved_at: new Date().toISOString(),
@@ -363,7 +380,13 @@ export default function IctsRequisitionsView({ currentUser, isAdmin = false }) {
       </div>
 
       {/* Requests Grid / Cards */}
-      {displayedRequests.length === 0 ? (
+      {loading ? (
+        <div className="card-amrita" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: 0 }}>
+            Loading ICTS requisitions...
+          </p>
+        </div>
+      ) : displayedRequests.length === 0 ? (
         <div className="card-amrita" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
           <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: 'var(--bg-surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem', color: 'var(--text-muted)' }}>
             <Laptop size={22} />

@@ -176,7 +176,78 @@ router.patch('/purchase-requests/:id', requireAuth, requireRole('admin'), async 
     return res.json({ success: true, request: data });
   }
 
-  res.json({ success: true, request: { id, status } });
+  // 4. ICTS Hardware & Asset Requisitions
+const inMemoryIctsRequests = [];
+
+router.get('/icts-requests', async (req, res) => {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('icts_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (!error && data && data.length > 0) return res.json(data);
+    } catch {
+      // fallback
+    }
+  }
+  res.json(inMemoryIctsRequests);
+});
+
+router.post('/icts-requests', async (req, res) => {
+  const newReq = {
+    id: `icts-req-${Date.now()}`,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    ...req.body
+  };
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('icts_requests')
+        .insert(newReq)
+        .select()
+        .single();
+      if (!error && data) return res.status(201).json({ success: true, request: data });
+    } catch {
+      // fallback
+    }
+  }
+
+  inMemoryIctsRequests.unshift(newReq);
+  res.status(201).json({ success: true, request: newReq });
+});
+
+router.patch('/icts-requests/:id', async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('icts_requests')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (!error && data) return res.json({ success: true, request: data });
+    } catch {
+      // fallback
+    }
+  }
+
+  const idx = inMemoryIctsRequests.findIndex(r => r.id === id);
+  if (idx !== -1) {
+    inMemoryIctsRequests[idx] = { ...inMemoryIctsRequests[idx], ...updates, updated_at: new Date().toISOString() };
+    return res.json({ success: true, request: inMemoryIctsRequests[idx] });
+  }
+
+  res.json({ success: true, request: { id, ...updates } });
 });
 
 export default router;
+
