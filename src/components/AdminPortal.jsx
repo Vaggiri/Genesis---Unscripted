@@ -9,19 +9,23 @@ import {
   Trash2, 
   CheckCircle, 
   Save, 
-  Layers, 
   ShieldCheck,
   BarChart3,
   FileSpreadsheet,
   UserCog,
-  ArrowLeft
+  ArrowLeft,
+  Bell
 } from 'lucide-react';
 import { api } from '../services/api';
 import UtilizationDashboard from './UtilizationDashboard';
+import NotificationsView from './NotificationsView';
+import YuktiLogo from './YuktiLogo';
+import { useNotifications } from '../context/NotificationContext';
 
-export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, onSaveSettings }) {
-  const [activeTab, setActiveTab] = useState('cms'); // 'cms' | 'classrooms' | 'timetables' | 'reports' | 'settings'
+export default function AdminPortal({ onRefreshNeeded, settings, onSaveSettings }) {
+  const [activeTab, setActiveTab] = useState('utilization'); // 'utilization' | 'notifications' | 'classrooms' | 'timetables' | 'reports' | 'settings' | 'users' | 'audit' | 'timetables-import'
   const [previousTab, setPreviousTab] = useState(null);
+  const { unreadCount } = useNotifications();
 
   const handleTabChange = (newTab) => {
     if (newTab !== activeTab) {
@@ -36,11 +40,10 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
       setPreviousTab(null);
       setActiveTab(prev);
     } else {
-      setActiveTab('cms');
+      setActiveTab('utilization');
     }
   };
 
-  const [pages, setPages] = useState(pagesConfig || []);
   const [classrooms, setClassrooms] = useState([]);
   const [timetables, setTimetables] = useState([]);
   const [reports, setReports] = useState([]);
@@ -87,11 +90,10 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
 
   const loadAll = useCallback(async () => {
     try {
-      const [classRes, ttRes, repRes, pagesRes, setRes, usersRes, auditRes] = await Promise.all([
+      const [classRes, ttRes, repRes, setRes, usersRes, auditRes] = await Promise.all([
         api.getClassrooms('Monday', '10:00'),
         api.getTimetables(),
         api.getReports(),
-        api.getPages(),
         api.getSettings(),
         api.adminGetUsers().catch(() => []),
         api.adminGetAuditLog().catch(() => [])
@@ -99,7 +101,6 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
       setClassrooms(classRes.classrooms || []);
       setTimetables(ttRes || []);
       setReports(repRes || []);
-      setPages(pagesRes || []);
       if (setRes) setAdminSettings(setRes);
       setUsersList(usersRes || []);
       setAuditLogs(auditRes || []);
@@ -184,16 +185,6 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
   const showToast = (message, isError = false) => {
     setFeedback({ message, isError });
     setTimeout(() => setFeedback(null), 3000);
-  };
-
-  const handleSavePage = async (page) => {
-    try {
-      await api.updatePage(page.slug, page);
-      showToast(`Page "${page.title}" updated dynamically!`);
-      if (onRefreshNeeded) onRefreshNeeded();
-    } catch (err) {
-      showToast(`Failed: ${err.message}`, true);
-    }
   };
 
   const handleAddClassroom = async (e) => {
@@ -293,14 +284,17 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
     <div style={{ padding: '1rem 0 3rem' }}>
       
       {/* Title */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div>
-          <h2 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.65rem)', color: 'var(--text-main)', fontWeight: 800 }}>
-            Admin Management Desk
-          </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Dynamic portal page editing, timetable manager, and crowd report moderation
-          </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.85rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <YuktiLogo size={46} style={{ borderRadius: '13px', boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)', flexShrink: 0 }} />
+          <div>
+            <h2 style={{ fontSize: 'clamp(1.25rem, 4vw, 1.65rem)', color: 'var(--text-main)', fontWeight: 800 }}>
+              Admin Management Desk
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Campus innovation facilities, room schedules, crowd moderation, and system governance
+            </p>
+          </div>
         </div>
 
         {feedback && (
@@ -321,14 +315,14 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
       {/* Modern Desktop Segmented Navigation Bar */}
       <nav className="nav-segmented-bar" aria-label="Admin Navigation">
         {[
-          { id: 'cms', label: 'Dynamic CMS Pages', icon: Layers },
+          { id: 'utilization', label: 'Utilization Engine', icon: BarChart3 },
+          { id: 'notifications', label: `Notifications`, icon: Bell, badge: unreadCount },
           { id: 'users', label: `Users & Roles (${usersList.length})`, icon: UserCog },
           { id: 'timetables-import', label: 'Import Timetable CSV', icon: FileSpreadsheet },
-          { id: 'audit', label: `Security Audit (${auditLogs.length})`, icon: ShieldCheck },
-          { id: 'utilization', label: 'Utilization Engine', icon: BarChart3 },
           { id: 'classrooms', label: `Classrooms (${classrooms.length})`, icon: Building },
           { id: 'timetables', label: `Timetables (${timetables.length})`, icon: Calendar },
           { id: 'reports', label: `Crowd Reports (${reports.length})`, icon: Flag },
+          { id: 'audit', label: `Security Audit (${auditLogs.length})`, icon: ShieldCheck },
           { id: 'settings', label: 'Portal Configuration', icon: Sliders }
         ].map(tab => {
           const Icon = tab.icon;
@@ -342,13 +336,26 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
             >
               <Icon size={16} />
               <span>{tab.label}</span>
+              {tab.badge > 0 && (
+                <span style={{
+                  backgroundColor: '#dc2626',
+                  color: '#ffffff',
+                  fontSize: '0.65rem',
+                  fontWeight: 800,
+                  padding: '0.1rem 0.4rem',
+                  borderRadius: '999px',
+                  marginLeft: '0.25rem'
+                }}>
+                  {tab.badge}
+                </span>
+              )}
             </button>
           );
         })}
       </nav>
 
       {/* Universal Page Back Navigation Button */}
-      {(activeTab !== 'cms' || previousTab) && (
+      {(activeTab !== 'utilization' || previousTab) && (
         <div style={{ 
           marginBottom: '1rem', 
           display: 'flex', 
@@ -378,7 +385,7 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
             title="Go back to previous page"
           >
             <ArrowLeft size={16} color="var(--amrita-maroon)" />
-            <span>Back {previousTab ? 'to Previous Section' : 'to CMS Pages'}</span>
+            <span>Back {previousTab ? 'to Previous Section' : 'to Utilization Engine'}</span>
           </button>
 
           <span className="hide-mobile" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -387,59 +394,9 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
         </div>
       )}
 
-      {/* TAB 1: DYNAMIC CMS PAGE EDITOR */}
-      {activeTab === 'cms' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-          {pages.map((p, idx) => (
-            <div key={p.slug} className="card-amrita" style={{ padding: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <span className="badge badge-maroon">{p.slug}</span>
-                <button
-                  onClick={() => handleSavePage(p)}
-                  className="btn-amrita"
-                  style={{ minHeight: '34px', padding: '0.35rem 0.65rem', fontSize: '0.75rem' }}
-                >
-                  <Save size={13} />
-                  <span>Save</span>
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={p.title}
-                    onChange={(e) => {
-                      const updated = [...pages];
-                      updated[idx].title = e.target.value;
-                      setPages(updated);
-                    }}
-                    className="form-input"
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                    Subtitle
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={p.subtitle}
-                    onChange={(e) => {
-                      const updated = [...pages];
-                      updated[idx].subtitle = e.target.value;
-                      setPages(updated);
-                    }}
-                    className="form-textarea"
-                  />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* TAB: NOTIFICATIONS & ALERTS */}
+      {activeTab === 'notifications' && (
+        <NotificationsView />
       )}
 
       {/* TAB 2: CLASSROOMS CRUD */}
@@ -955,7 +912,8 @@ export default function AdminPortal({ onRefreshNeeded, settings, pagesConfig, on
       {/* Mobile Bottom Navigation */}
       <div className="mobile-bottom-nav">
         {[
-          { id: 'cms', label: 'Pages', icon: Layers },
+          { id: 'utilization', label: 'Analytics', icon: BarChart3 },
+          { id: 'notifications', label: 'Alerts', icon: Bell },
           { id: 'classrooms', label: 'Rooms', icon: Building },
           { id: 'timetables', label: 'Timetable', icon: Calendar },
           { id: 'reports', label: 'Reports', icon: Flag },

@@ -8,17 +8,22 @@ import {
   ShoppingCart, 
   Package, 
   Plus, 
-  LogOut 
+  LogOut,
+  Bell
 } from 'lucide-react';
 import FacultyApprovalsView from './FacultyApprovalsView';
 import ClassroomOccupancyModule from './ClassroomOccupancyModule';
 import LabDirectoryView from './LabDirectoryView';
 import VoiceChatBot from './VoiceChatBot';
 import InventorySearch from './InventorySearch';
+import NotificationsView from './NotificationsView';
+import YuktiLogo from './YuktiLogo';
+import { useNotifications } from '../context/NotificationContext';
 import { api } from '../services/api';
 
 export default function FacultyPortal({ user, simulatedContext, bookings = [], onApprove, onReject, onNewBooking: _onNewBooking, onLogout }) {
-  const [activeTab, setActiveTab] = useState('classrooms'); // 'classrooms' | 'approvals' | 'bot' | 'directory' | 'inventory' | 'orders' | 'profile'
+  const [activeTab, setActiveTab] = useState('classrooms'); // 'classrooms' | 'approvals' | 'notifications' | 'bot' | 'directory' | 'inventory' | 'orders' | 'profile'
+  const { unreadCount } = useNotifications();
   const [purchaseRequests, setPurchaseRequests] = useState([]);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderItem, setOrderItem] = useState('');
@@ -29,14 +34,6 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
   const fullName = user?.full_name || user?.name || 'Faculty Member';
   const empId = user?.emp_id || 'AMR-FACULTY';
   const dept = user?.department || 'Engineering Faculty';
-
-  const initials = fullName
-    .split(' ')
-    .filter(Boolean)
-    .map(n => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase() || 'FC';
 
   const loadOrders = async () => {
     try {
@@ -78,6 +75,7 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
   const facultyTabs = [
     { id: 'classrooms', label: 'Space Radar & Room Booking', shortLabel: 'Classrooms', icon: Calendar },
     { id: 'approvals', label: 'Student Slot Approvals', shortLabel: 'Approvals', icon: UserCheck, count: pendingCount },
+    { id: 'notifications', label: 'Notifications', shortLabel: 'Alerts', icon: Bell, count: unreadCount },
     { id: 'inventory', label: 'Drawer Component Stock', shortLabel: 'Components', icon: Package },
     { id: 'orders', label: 'Order Lab Components', shortLabel: 'Requisitions', icon: ShoppingCart },
     { id: 'bot', label: 'AI Voice Assistant', shortLabel: 'AI Assistant', icon: Sparkles },
@@ -99,22 +97,7 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
         gap: '0.85rem'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            backgroundColor: 'var(--amrita-maroon)',
-            color: '#ffffff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 800,
-            fontSize: '1.1rem',
-            boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)',
-            flexShrink: 0
-          }}>
-            {initials}
-          </div>
+          <YuktiLogo size={46} style={{ borderRadius: '13px', boxShadow: '0 4px 12px rgba(164, 18, 63, 0.25)' }} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
@@ -269,6 +252,10 @@ export default function FacultyPortal({ user, simulatedContext, bookings = [], o
 
       {activeTab === 'directory' && (
         <LabDirectoryView />
+      )}
+
+      {activeTab === 'notifications' && (
+        <NotificationsView />
       )}
 
       {activeTab === 'profile' && (
